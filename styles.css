@@ -37,3 +37,10 @@ nav button{flex:1;min-width:0;background:none;border:0;color:var(--m);display:fl
 nav svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 nav button[aria-current=page]{color:#fff;box-shadow:inset 0 2px 0 #fff;background:linear-gradient(180deg,#2a2a30,transparent)}
 nav button:focus-visible{outline:2px solid #fff;outline-offset:-2px}
+
+.seg button.done::after{content:"✓";margin-left:3px;font-size:12px}
+.seg button.skip::after{content:"↷";margin-left:3px;font-size:12px}
+.row .seg{margin:0}
+details .card{background:none;box-shadow:none;border:0;border-top:1px solid var(--ln);border-radius:0;padding:8px 0;margin:6px 0 0}
+details[open]>summary{margin-bottom:8px}
+details>.btn{margin:8px 0}
