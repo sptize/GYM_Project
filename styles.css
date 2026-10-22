@@ -18,6 +18,11 @@ label{display:block;color:var(--m);font-size:13px;margin:8px 0 2px}
 .seg{display:flex;background:#050506;border:1px solid var(--ln);border-radius:12px;padding:3px;margin:8px 0}
 .seg button{flex:1;background:none;border:0;color:var(--m);padding:11px 6px;font-size:15px;font-weight:700;border-radius:9px;min-height:44px}
 .seg button.on{background:linear-gradient(180deg,#f4f4f6,#b4b4be);color:#0a0a0b;box-shadow:0 2px 8px #0009}
+textarea{display:block;width:100%;background:#060608;color:var(--t);border:1px solid var(--ln);border-radius:9px;padding:11px;font:14px/1.35 ui-monospace,monospace;word-break:break-all;resize:vertical;margin:6px 0}
+textarea:focus-visible{outline:2px solid #fff}
+.hint{color:var(--m);font-size:12px;line-height:1.4;margin:6px 0}
+.calc{border-top:1px solid var(--ln);margin-top:8px;padding-top:4px}
+input[type=file]{padding:9px;font-size:14px}
 input,select{background:#060608;color:var(--t);border:1px solid var(--ln);border-radius:9px;padding:11px;font-size:16px;width:100%;min-height:44px}
 .nu{display:flex;gap:4px;min-width:0}.nu input{flex:1;min-width:0}
 .u{background:linear-gradient(180deg,#3c3c43,#202024);color:var(--t);border:1px solid var(--ln);border-radius:9px;min-width:46px;font-weight:700}

@@ -11,27 +11,28 @@ const pn=t=>{t=String(t).trim().replace(',','.');const v=parseFloat(t);return t!
 const dn=t=>t==='free'?'Libre':'Día '+t.slice(1);
 const NAMES=['Hip thrust','Hack squat','Extensiones de piernas','Curl femoral','Elevaciones laterales','Dominadas','Remo en T','Fondos','Abductores','Aductores','Patada en polea','Peso muerto con remo','Curl de bíceps','Extensiones de tríceps','Encogimiento de hombros','Banco 45°','Soga por debajo del braquial'];
 const MED=[['cuello','Cuello'],['pecho','Pecho / busto'],['cintura','Cintura (zona más estrecha)'],['abdomen','Abdomen (a nivel del ombligo)'],['cadera','Cadera (zona más ancha)'],['brazoD','Brazo derecho'],['brazoI','Brazo izquierdo'],['musloD','Muslo derecho'],['musloI','Muslo izquierdo'],['pantD','Pantorrilla derecha'],['pantI','Pantorrilla izquierda']];
-const S={type:'d1',tab:'dias',date:today(),view:'main',ctx:null,cat:[],all:[],meds:[],plan:{days:0,routines:{}},stack:[],name:'',sess:null,med:null,ready:'',auto:true,open:{},f:{day:'',date:''}},V={};
+const S={type:'d1',tab:'dias',date:today(),view:'main',ctx:null,cat:[],all:[],meds:[],plan:{days:0,routines:{}},stack:[],name:'',sess:null,med:null,ready:'',auto:true,open:{},f:{day:'',date:''},ptab:'m',rm:{k:'1rm',d:{}},rmOpen:{},rmCalc:{},share:0,imp:null},V={};
 const TOP={main:1,hist:1,plan:1,data:1};
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,4000)}
 const saveProfile=()=>DB.put('kv',{k:'perfil',name:S.name,phone:S.phone,cc:S.cc});
 const setSt=t=>$('#st').textContent=t;
-// Autoguardado: 's' = sesión, 'm' = medidas
+// Autoguardado: 's' = sesión, 'm' = medidas, 'r' = 1RM
 let tm;const dirty=new Set();
 function save(k='s'){dirty.add(k);setSt('Guardando');clearTimeout(tm);tm=setTimeout(flush,300)}
 async function flush(){clearTimeout(tm);if(!dirty.size)return;const d=[...dirty];dirty.clear();
-try{if(d.includes('s')&&S.sess){S.sess.modified=Date.now();await DB.put('sessions',S.sess)}if(d.includes('m')&&S.med)await DB.put('kv',S.med);setSt('Guardado')}
+try{if(d.includes('s')&&S.sess){S.sess.modified=Date.now();await DB.put('sessions',S.sess)}if(d.includes('m')&&S.med)await DB.put('kv',S.med);if(d.includes('r')&&S.rm)await DB.put('kv',S.rm);setSt('Guardado')}
 catch(e){d.forEach(x=>dirty.add(x));setSt('Error al guardar');toast(e.name==='QuotaExceededError'?'Almacenamiento lleno: exporta una copia y libera espacio':'No se pudo guardar: '+e.message)}}
 addEventListener('pagehide',flush);document.addEventListener('visibilitychange',()=>{if(document.hidden)flush()});
 const nameOf=(id,fb)=>(S.cat.find(c=>c.id===id)||{}).name||fb||'?';
-const mkEx=(id,fb)=>({exId:id,name:nameOf(id,fb),open:true,sets:[0,1,2].map(()=>({r:'',w:'',u:'kg'}))});
-const planEx=t=>(S.plan.routines[t]||[]).map(e=>mkEx(e.id,e.name));
+const mkEx=(id,fb,n)=>({exId:id,name:nameOf(id,fb),open:true,sets:Array.from({length:n>0&&n<=10?n:3},()=>({r:'',w:'',u:'kg'}))});
+const planEx=t=>(S.plan.routines[t]||[]).map(e=>mkEx(e.id,e.name,e.s));
 // Hidratación: parte de la sesión. s.hy = [{v,u}] con u 'ml' o 'pomos'; se suman las entradas
 const hyTxt=s=>{const it=s.hy||[];if(!it.length)return '';const t={};it.forEach(x=>t[x.u]=(t[x.u]||0)+x.v);
 return it.length>1?it.map(x=>r2(x.v)+' '+x.u).join(' + ')+' = '+Object.entries(t).map(([u,v])=>r2(v)+' '+u).join(' + '):r2(it[0].v)+' '+it[0].u};
 const hasMed=m=>m.h!==''||m.w!==''||Object.values(m.m||{}).some(v=>v!==''&&v!=null);
 async function load(){S.cat=(await DB.all('catalog')).sort((a,b)=>a.o-b.o);S.all=await DB.all('sessions');
 const kv=await DB.all('kv'),pf=kv.find(x=>x.k==='perfil')||{};S.name=pf.name||'';S.phone=pf.phone||'';S.cc=pf.cc||'';S.meds=kv.filter(x=>x.k.startsWith('med-'));
+const r1=kv.find(x=>x.k==='1rm');S.rm=r1&&r1.d?r1:{k:'1rm',d:{}};
 const pl=kv.find(x=>x.k==='plan');S.plan=pl?{days:pl.days||0,routines:pl.routines||{}}:{days:0,routines:{}}}
 // Día que toca hoy: el que ya tiene registro en la fecha, o el siguiente al último registrado (cíclico)
 function autoDay(){const D=S.plan.days;if(!D)return S.type;
@@ -68,9 +69,29 @@ try{S.name=n;S.cc=p.cc;S.phone=p.phone;await saveProfile();go('main')}catch(e){t
 V.main=()=>h('div',{},
 S.tab==='med'?B('← Atrás',()=>{S.tab='dias';render()},'sm alt'):'',
 h('p',{class:'mut'},'Sesión de '+S.name),
-seg([['dias','Días'],['med','Medidas']],S.tab,v=>{S.tab=v;render()}),
+seg([['dias','Días'],['med','Parámetros']],S.tab,v=>{S.tab=v;render()}),
 lab('Fecha',h('input',{type:'date',value:S.date,onchange:e=>{if(e.target.value){S.date=e.target.value;S.auto=true;go('main')}}})),
-S.tab==='med'?medView():diasView());
+S.tab==='med'?paramView():diasView());
+
+// Parámetros: dos slots bajo la fecha, Medidas y 1RM
+const paramView=()=>h('div',{},seg([['m','Medidas'],['rm','1RM']],S.ptab,v=>{S.ptab=v;render()}),S.ptab==='rm'?rmView():medView());
+// Fórmula de Epley: 1RM = peso × (1 + reps/30). Con 1 repetición el 1RM es el propio peso
+const epley=(w,r)=>!(w>0)||!(r>=1)?0:r===1?r2(w):Math.round(w*(1+r/30)*10)/10;
+function rmView(){const D=S.plan.days,seen=new Set(),L=[];
+for(let i=1;i<=D;i++)(S.plan.routines['d'+i]||[]).forEach(e=>{if(!seen.has(e.id)){seen.add(e.id);L.push(e)}});
+const hint=h('p',{class:'hint'},'1RM (una repetición máxima): el peso más alto que podrías levantar una sola vez con buena técnica. Sirve para medir tu fuerza y ajustar tus cargas. Puedes escribirlo a mano o calcularlo con la fórmula de Epley a partir de un peso y las repeticiones que lograste (más fiable con 10 repeticiones o menos).');
+if(!L.length)return h('div',{},hint,h('div',{class:'card'},h('p',{class:'mut'},'Aún no hay ejercicios en tu rutina semanal. Agrégalos en Mis días y aparecerán aquí.'),B('Ir a Mis días',()=>go('plan'),'alt')));
+return h('div',{},hint,L.map(e=>{const name=nameOf(e.id,e.name),o=S.rm.d[e.id]||(S.rm.d[e.id]={w:'',u:'kg'}),open=!!S.rmOpen[e.id];
+const c=S.rmCalc[e.id]||(S.rmCalc[e.id]={w:'',r:''}),res=h('b',{}),upd=()=>{const v=epley(c.w,c.r);res.textContent=v?v+' '+(o.u||'kg'):'—';res.dataset.v=v||''};
+const card=h('div',{class:'card'},h('b',{},name),lab('1RM',numU(o,'w','u','1RM de '+name,'r',()=>{o.upd=S.date})),
+o.upd&&o.w!==''?h('p',{class:'hint',style:'margin:2px 0 6px'},'Actualizado: '+o.upd):'',
+B(open?'Cerrar calculadora':'Calcular con fórmula',()=>{S.rmOpen[e.id]=!open;render()},'sm alt'));
+if(open){upd();card.append(h('div',{class:'calc'},
+lab('Peso levantado ('+(o.u||'kg')+')',h('input',{type:'text',inputmode:'decimal','aria-label':'Peso levantado en '+name,value:c.w===''?'':c.w,oninput:ev=>{c.w=pn(ev.target.value);upd()}})),
+lab('Repeticiones logradas',h('input',{type:'text',inputmode:'numeric','aria-label':'Repeticiones logradas en '+name,value:c.r===''?'':c.r,oninput:ev=>{const v=parseInt(ev.target.value,10);c.r=v>0?v:'';upd()}})),
+h('p',{style:'margin:8px 0'},'1RM estimado: ',res),
+B('Usar este valor',()=>{const v=epley(c.w,c.r);if(!v)return toast('Escribe el peso y las repeticiones');o.w=v;o.upd=S.date;save('r');S.rmOpen[e.id]=false;render();toast('1RM guardado: '+v+' '+(o.u||'kg'))},'main')))}
+return card}))}
 
 function dayStrip(){const D=S.plan.days;
 const st=n=>{const x=S.all.find(z=>z.id===`yo|d${n}|${S.date}`);return !x?'':x.status==='finalizada'?'done':x.status==='saltado'?'skip':''};
@@ -154,14 +175,47 @@ const sv=async()=>{try{await DB.put('kv',{k:'plan',days:P.days,routines:P.routin
 const dayCard=n=>{const key='d'+n,L=P.routines[key]||(P.routines[key]=[]);
 const mv=async(i,d)=>{const j=i+d;if(j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];await sv();render()};
 return h('div',{class:'card'},h('h3',{style:'margin:0 0 4px'},'Día '+n),
-L.length?L.map((e,i)=>h('div',{class:'row',style:'margin:4px 0'},h('span',{class:'g'},(i+1)+'. '+nameOf(e.id,e.name)),
+L.length?L.map((e,i)=>h('div',{class:'row',style:'margin:4px 0'},h('span',{class:'g'},(i+1)+'. '+nameOf(e.id,e.name)+(e.s?' · '+e.s+' series':'')),
 B('↑',()=>mv(i,-1),'sm alt','Subir '+nameOf(e.id,e.name)),B('↓',()=>mv(i,1),'sm alt','Bajar '+nameOf(e.id,e.name)),
 B('Eliminar',async()=>{if(confirm('¿Eliminar '+nameOf(e.id,e.name)+' del Día '+n+'?')){L.splice(i,1);await sv();render()}},'sm red','Eliminar el ejercicio '+nameOf(e.id,e.name)+' del día '+n))):h('p',{class:'mut'},'Aún no hay ejercicios en este día.'),
-B('+ Añadir ejercicios',()=>go('pick',{multi:true,back:'plan',cb:async ids=>{ids.forEach(id=>{if(!L.some(x=>x.id===id))L.push({id,name:nameOf(id)})});await sv();go('plan')}}),'alt'))};
+B('+ Añadir ejercicios',()=>go('pick',{multi:true,back:'plan',cb:async ids=>{ids.forEach(id=>{if(!L.some(x=>x.id===id))L.push({id,name:nameOf(id)})});await sv();go('plan')}}),'alt'),
+L.length?B(S.share===n?'Ocultar código':'Compartir este día',()=>{S.share=S.share===n?0:n;render()},'alt'):'',
+S.share===n&&L.length?h('div',{},h('p',{class:'hint'},'Incluye solo los ejercicios y las series, sin pesos ni medidas. Envía este código a tu gymmate: lo pega en su app (Mis días → Importar rutina) y rellena sus propios pesos.'),
+shareBox(dayCode(n),'Mi rutina del Día '+n+' en GYM RAT APP. Cópiala y pégala en Mis días → Importar rutina:')):'')};
+// Importar rutina de un gymmate: pregunta si crear un día nuevo o reemplazar uno
+const applyImp=async(mode)=>{const I=S.imp;try{
+const ents=[];for(const [nm,sr] of I.e){let x=S.cat.find(z=>z.name.toLowerCase()===nm.toLowerCase());
+if(!x){x={id:uid(),name:nm,o:S.cat.length+1};await DB.put('catalog',x);S.cat.push(x)}
+if(!ents.some(z=>z.id===x.id))ents.push({id:x.id,name:x.name,s:sr})}
+if(mode==='new'){P.days=Math.min(7,D+1);P.routines['d'+P.days]=ents}else P.routines['d'+mode]=ents;
+await sv();S.imp=null;toast('Rutina importada en el Día '+(mode==='new'?P.days:mode));render()}catch(e){toast('Error al importar: '+e.message)}};
+const impBox=()=>{const I=S.imp;
+if(!I){const ta=h('textarea',{rows:3,'aria-label':'Código de rutina recibido',placeholder:'Pega aquí el código de rutina (empieza con GYMDIA1)'});
+return h('div',{class:'card'},h('b',{},'Importar rutina de un gymmate'),h('p',{class:'mut',style:'margin:2px 0 6px'},'Pega el código que te enviaron. Verás los ejercicios antes de decidir dónde guardarlos.'),ta,
+B('Leer código',()=>{const r=parseDayCode(ta.value);if(!r)return toast('Código no válido: pega el código completo');S.imp=r;render()},'alt'))}
+return h('div',{class:'card'},h('b',{},'Rutina recibida: '+I.e.length+(I.e.length===1?' ejercicio':' ejercicios')),
+I.e.map(([nm,sr],i)=>h('p',{style:'margin:3px 0'},(i+1)+'. '+nm+' · '+sr+' series')),
+h('p',{class:'mut',style:'margin:10px 0 4px'},'¿Qué quieres hacer con ella?'),
+D<7?B('Añadir como Día '+(D+1)+' (nuevo)',()=>applyImp('new'),'main'):'',
+D?h('div',{},h('p',{class:'mut',style:'margin:8px 0 4px'},'O reemplazar los ejercicios de un día existente:'),h('div',{class:'row'},[...Array(D)].map((_,i)=>B('Día '+(i+1),()=>{if(confirm('Se reemplazarán los ejercicios del Día '+(i+1)+' por los de esta rutina. Tu historial no se borra.\n\n¿Continuar?'))applyImp(i+1)},'sm red')))):'',
+B('Cancelar',()=>{S.imp=null;render()},'alt'))};
 return h('div',{},h('h2',{},'Mis días de entrenamiento'),
 h('p',{class:'mut'},'Elige cuántos días entrenas y qué ejercicios haces cada uno. Todo queda guardado: en Inicio verás tu rutina y solo anotarás los pesos.'),
 lab('¿Cuántos días entrenas?',seg([1,2,3,4,5,6,7].map(n=>[n,String(n)]),D,async v=>{P.days=v;await sv();render()})),
-D?[...Array(D)].map((_,i)=>dayCard(i+1)):h('p',{class:'mut'},'Elige el número de días para empezar.'))};
+D?[...Array(D)].map((_,i)=>dayCard(i+1)):h('p',{class:'mut'},'Elige el número de días para empezar.'),impBox())};
+
+// Códigos de texto: base64 "url-safe" (sin + / =), fácil de pegar en WhatsApp
+const b64=u=>{let s='';for(let i=0;i<u.length;i+=8192)s+=String.fromCharCode.apply(null,u.subarray(i,i+8192));return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
+const unb64=t=>{t=t.replace(/-/g,'+').replace(/_/g,'/');while(t.length%4)t+='=';const s=atob(t),u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u};
+const gz=async(u,zip)=>new Uint8Array(await new Response(new Blob([u]).stream().pipeThrough(zip?new CompressionStream('gzip'):new DecompressionStream('gzip'))).arrayBuffer());
+async function copyTxt(t){try{await navigator.clipboard.writeText(t);toast('Código copiado')}catch(_){const a=h('textarea',{style:'position:fixed;opacity:0'},t);document.body.append(a);a.select();let ok=false;try{ok=document.execCommand('copy')}catch(__){}a.remove();toast(ok?'Código copiado':'No se pudo copiar: mantén pulsado el texto y elige Copiar')}}
+const shareBox=(code,msg)=>h('div',{},h('textarea',{rows:3,readonly:true,'aria-label':'Código',onclick:e=>e.target.select()},code),
+h('div',{class:'row'},B('Copiar código',()=>copyTxt(code),'sm g'),navigator.share?B('Enviar…',()=>navigator.share({text:msg+'\n'+code}).catch(()=>{}),'sm alt g'):''));
+// Rutina de un día: solo ejercicios y series (sin pesos ni medidas). Series = las de tu última sesión de ese día, o las del plan, o 3
+const lastSets=(key,id)=>{const x=S.all.filter(z=>z.type===key&&z.exercises.some(e=>e.exId===id)).sort((a,b)=>b.localDate.localeCompare(a.localDate))[0],e=x&&x.exercises.find(z=>z.exId===id);return e?e.sets.length:0};
+const dayCode=n=>{const k='d'+n;return 'GYMDIA1.'+b64(new TextEncoder().encode(JSON.stringify({v:1,e:(S.plan.routines[k]||[]).map(e=>[nameOf(e.id,e.name),Math.min(10,Math.max(1,lastSets(k,e.id)||e.s||3))])})))};
+const parseDayCode=t=>{try{const m=String(t).match(/GYMDIA1\.[A-Za-z0-9_-]+/);if(!m)return null;const j=JSON.parse(new TextDecoder().decode(unb64(m[0].slice(8))));if(!j||!Array.isArray(j.e))return null;
+const e=j.e.slice(0,40).map(x=>[String(x&&x[0]||'').trim().slice(0,80),Math.min(10,Math.max(1,parseInt(x&&x[1],10)||3))]).filter(x=>x[0]);return e.length?{e}:null}catch(_){return null}};
 
 // Desplegable (recuerda si estaba abierto aunque la vista se redibuje)
 const dt=(k,t,...c)=>{const d=h('details',{},h('summary',{},t),c);d.open=!!S.open[k];d.addEventListener('toggle',()=>{S.open[k]=d.open});return d};
@@ -217,30 +271,52 @@ catch(e){toast('Error al abrir WhatsApp: '+e.message)}}
 const fullTxt=()=>{const ses=S.all.filter(s=>s.exercises.length).sort((a,b)=>a.localDate.localeCompare(b.localDate)||a.type.localeCompare(b.type)),ms=S.meds.filter(hasMed).sort((a,b)=>a.date.localeCompare(b.date));
 return [`GYM RAT APP — ${S.name}`,`Historial completo (exportado ${today()})`,`${ses.length} sesiones`,'',ses.length?rep(ses):'Sin sesiones de entrenamiento',
 ...(ms.length?['','MEDIDAS CORPORALES — HISTORIAL',...ms.flatMap(m=>['',`Fecha: ${m.date}`,...medTxt(m).split('\n').slice(1)])]:[])].join('\n')};
+async function backupObj(){await flush();await load();const sess=S.all.filter(s=>s.exercises.length||s.status==='saltado').sort((a,b)=>a.date.localeCompare(b.date));
+return{app:'gym-rat-app',schema:1,exportedAt:new Date().toISOString(),catalog:await DB.all('catalog'),athletes:[],preferences:await DB.all('kv'),sessions:sess}}
+// Código de respaldo (para cambiar de teléfono): todo tu progreso en un texto comprimido
+async function backupCode(){const u=new TextEncoder().encode(JSON.stringify(await backupObj()));
+return typeof CompressionStream!=='undefined'?'GYMRAT1.'+b64(await gz(u,true)):'GYMRAT0.'+b64(u)}
+// Lee un código GYMRAT… o el texto de un archivo de Guardado General; devuelve los datos listos o null si no es válido
+async function readBackup(text){try{text=String(text||'').trim();let j;
+if(text[0]==='{')j=JSON.parse(text);
+else{const m=text.replace(/\s+/g,'').match(/GYMRAT([01])\.([A-Za-z0-9_-]+)/);if(!m)return null;let u=unb64(m[2]);if(m[1]==='1')u=await gz(u,false);j=JSON.parse(new TextDecoder().decode(u))}
+if(!j||j.app!=='gym-rat-app'||!Array.isArray(j.sessions))return null;
+const ok=(a,f)=>(Array.isArray(a)?a:[]).filter(x=>x&&typeof x==='object'&&f(x)),cat=ok(j.catalog,x=>x.id&&x.name);
+return{catalog:cat.length?cat:NAMES.map((n,i)=>({id:'ex'+(i+1),name:n,o:i+1})),athletes:[],sessions:ok(j.sessions,x=>x.id&&x.type&&x.localDate&&Array.isArray(x.exercises)),kv:ok(j.preferences,x=>typeof x.k==='string')}}catch(_){return null}}
+async function restoreFrom(text){try{const o=await readBackup(text);if(!o)return toast('Código o archivo no válido: pega el código completo');
+if(!confirm('Se reemplazarán TODOS los datos de este teléfono por los de la copia ('+o.sessions.length+' sesiones). Lo que tengas ahora se perderá.\n\n¿Cargar mi progreso?'))return;
+dirty.clear();clearTimeout(tm);await DB.replaceAll(o);
+S.sess=null;S.med=null;S.hd=null;S.ready='';S.auto=true;S.stack=[];S.open={};S.f={day:'',date:''};S.type='d1';S.tab='dias';S.ptab='m';S.rmOpen={};S.rmCalc={};S.share=0;S.imp=null;S.name='';
+await go('main');toast('Progreso cargado')}catch(e){toast('Error al cargar: '+e.message)}}
+const codeBox=()=>{const out=h('div'),ta=h('textarea',{rows:3,'aria-label':'Código de respaldo','placeholder':'Pega aquí tu código de respaldo (empieza con GYMRAT)'});
+return h('div',{},h('p',{class:'mut'},'Si cambias de teléfono: en el viejo crea tu código y guárdalo (envíatelo por WhatsApp o en tus notas). En el nuevo, pégalo y carga tu progreso. Incluye sesiones, medidas, 1RM, tus días y el catálogo.'),
+B('Guardar mi progreso (crear código)',async()=>{try{const c=await backupCode();out.replaceChildren(h('p',{class:'hint'},'Código listo ('+c.length+' caracteres). Cópialo y guárdalo en un lugar seguro: contiene todos tus datos.'),shareBox(c,'Respaldo de GYM RAT APP:'))}catch(e){toast('Error al crear el código: '+e.message)}},'main'),out,
+h('div',{class:'card'},h('b',{},'Cargar mi progreso'),ta,B('Cargar desde el código',()=>restoreFrom(ta.value),'alt'),
+lab('O elige un archivo de Guardado General (.json)',h('input',{type:'file',accept:'.json,application/json',onchange:async e=>{const f=e.target.files[0];if(f)restoreFrom(await f.text());e.target.value=''}}))))};
 async function exp(kind){try{await flush();await load();const d=today();
-if(kind==='json'){const sess=S.all.filter(s=>s.exercises.length).sort((a,b)=>a.date.localeCompare(b.date));
-dl(`gym-rat-backup-${d}.json`,JSON.stringify({app:'gym-rat-app',schema:1,exportedAt:new Date().toISOString(),catalog:await DB.all('catalog'),athletes:[],preferences:await DB.all('kv'),sessions:sess},null,1),'application/json')}
+if(kind==='json'){dl(`gym-rat-backup-${d}.json`,JSON.stringify(await backupObj(),null,1),'application/json')}
 else{if(!S.all.some(s=>s.exercises.length)&&!S.meds.some(hasMed))return toast('Aún no hay datos para exportar');out(`gym-rat-historial-${d}`,fullTxt(),kind)}
 toast('Exportación lista')}catch(e){toast('Error al exportar: '+e.message)}}
 // Borrado: 'hist' = sesiones, medidas e hidratación (conserva tus días, catálogo y datos); 'all' = todo, como app nueva
 async function wipe(kind){const all=kind==='all';
-if(!confirm(all?'Se borrará TODO: historial, medidas, tus días, el catálogo y tus datos personales. La app quedará como nueva.\n\n¿Ya hiciste un Guardado General?\n\n¿Continuar?':'Se borrarán TODAS las sesiones (con su hidratación) y medidas. Se conservan tus días, el catálogo y tus datos personales.\n\n¿Ya hiciste un Guardado General?\n\n¿Continuar?'))return;
+if(!confirm(all?'Se borrará TODO: historial, medidas, tus días, el catálogo y tus datos personales. La app quedará como nueva.\n\n¿Ya hiciste un Guardado General?\n\n¿Continuar?':'Se borrarán TODAS las sesiones (con su hidratación), medidas y 1RM. Se conservan tus días, el catálogo y tus datos personales.\n\n¿Ya hiciste un Guardado General?\n\n¿Continuar?'))return;
 if((prompt('Para confirmar escribe BORRAR (no se puede deshacer)')||'').trim().toUpperCase()!=='BORRAR')return toast('Cancelado: no se borró nada');
 try{dirty.clear();clearTimeout(tm);
 const kv=all?[]:(await DB.all('kv')).filter(x=>x.k==='perfil'||x.k==='plan'),cat=all?NAMES.map((n,i)=>({id:'ex'+(i+1),name:n,o:i+1})):await DB.all('catalog');
 await DB.replaceAll({catalog:cat,athletes:[],sessions:[],kv});
-S.sess=null;S.med=null;S.hd=null;S.ready='';S.auto=true;S.stack=[];S.open={};S.f={day:'',date:''};S.type='d1';S.tab='dias';
+S.sess=null;S.med=null;S.hd=null;S.ready='';S.auto=true;S.stack=[];S.open={};S.f={day:'',date:''};S.type='d1';S.tab='dias';S.ptab='m';S.rmOpen={};S.rmCalc={};S.share=0;S.imp=null;
 if(all){S.name='';S.phone='';S.cc=''}
 await go('main');toast(all?'App restablecida de cero':'Historial borrado')}
 catch(e){toast('Error al borrar: '+e.message)}}
 const wipeBox=()=>h('div',{},h('p',{class:'mut'},'Haz antes un Guardado General si quieres conservar una copia.'),
-B('Borrar historial (sesiones y medidas)',()=>wipe('hist'),'red'),
+B('Borrar historial (sesiones, medidas y 1RM)',()=>wipe('hist'),'red'),
 B('Borrar todo y empezar de cero',()=>wipe('all'),'red'));
 V.data=()=>{const pb=phoneBox(S.cc,S.phone),n=h('input',{type:'text','aria-label':'Tu nombre',value:S.name,maxlength:40});
 return h('div',{},h('h2',{},'General'),h('p',{class:'mut'},'Todo se guarda solo en este dispositivo.'),
 dt('pers','Datos personales',lab('Tu nombre',n),pb.el,B('Guardar datos',async()=>{const v=n.value.trim();if(!v)return toast('Escribe tu nombre');const p=pb.get();if(!p)return;
 try{S.name=v;S.cc=p.cc;S.phone=p.phone;await saveProfile();toast('Datos guardados')}catch(e){toast('Error: '+e.message)}},'alt')),
 dt('cat','Creación y edición de catálogo',catBox()),
+dt('code','Cambio de teléfono: guardar / cargar progreso',codeBox()),
 dt('wipe','Borrar datos / empezar de cero',wipeBox()),
 dt('save','Guardado General',h('p',{class:'mut'},'«Guardado General» descarga un archivo con todos tus datos (incluye tus días y la hidratación de cada sesión); TXT y PDF son para leer o compartir.'),
 B('Guardado General',()=>exp('json'),'main'),
