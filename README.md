@@ -15,13 +15,24 @@ General → Exportación → Guardado General (guárdalo fuera del teléfono). L
 En el primer inicio (o en General → Datos personales) guarda tu código de país y tu número de 8 dígitos. El botón verde *Exportar como mensaje a WhatsApp* abre tu chat con el resultado de la sesión ya escrito; tú pulsas enviar. Necesita internet.
 
 ## Mis días (rutina semanal)
+<<<<<<< HEAD
 Pestaña *Mis días*: elige cuántos días entrenas (1–7) y añade/ordena/elimina los ejercicios de cada día. Se guarda solo. En *Inicio* aparecen únicamente esos días; al entrar se marca el que toca (el siguiente al último que hiciste o saltaste). Al tocar un día: **Listo. ¡Vamos allá!** abre sus ejercicios (con tus pesos de la última vez en gris) y **Paso de hoy** lo salta y pasa al siguiente.
 
 ## Hidratación
 Dentro de cada día abierto (después de *Listo. ¡Vamos allá!*): escribe la cantidad en ml o pomos y toca + para sumarla (500 ml + 500 ml …). Forma parte de la sesión y sale en resumen, exportaciones y Guardado General.
+=======
+Pestaña *Mis días*: elige cuántos días entrenas (1–7) y añade/ordena/elimina los ejercicios de cada día. Se guarda solo. En *Inicio* aparecen únicamente esos días; al entrar se marca el que toca (el siguiente al último que hiciste o saltaste). Al tocar un día: **Listo** abre sus ejercicios (con tus pesos de la última vez en gris) y **Paso** lo salta y pasa al siguiente.
+
+## Hidratación
+En *Inicio*, campo diario en pomos o ml. Se incluye en el Guardado General y en las exportaciones.
+>>>>>>> 361c7ffecdca13e6cfcdc2a0bb043d56da82e1d9
 
 ## General
 Datos personales, Creación y edición de catálogo y Guardado General son desplegables.
 
 ## Borrar datos
+<<<<<<< HEAD
 General → *Borrar datos / empezar de cero*: «Borrar historial» (sesiones y medidas) o «Borrar todo» (deja la app como nueva). Pide escribir BORRAR para confirmar.
+=======
+General → *Borrar datos / empezar de cero*: «Borrar historial» (sesiones, medidas, hidratación) o «Borrar todo» (deja la app como nueva). Pide escribir BORRAR para confirmar.
+>>>>>>> 361c7ffecdca13e6cfcdc2a0bb043d56da82e1d9
