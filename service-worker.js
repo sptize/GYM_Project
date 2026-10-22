@@ -1,5 +1,5 @@
 // Sube V al cambiar archivos. Solo cachés: la base IndexedDB nunca se toca aquí.
-const V='gymrat-v9',F=['./','index.html','styles.css','app.js','db.js','manifest.webmanifest','icon-192.png','icon-512.png'];
+const V='gymrat-v12',F=['./','index.html','styles.css','app.js','db.js','manifest.webmanifest','icon-192.png','icon-512.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(V).then(c=>c.addAll(F)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==V).map(x=>caches.delete(x)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',e=>{if(e.request.method!=='GET')return;
