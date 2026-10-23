@@ -9,7 +9,6 @@ const uid=()=>crypto.randomUUID?crypto.randomUUID():Date.now()+'-'+Math.random()
 const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')};
 const pn=t=>{t=String(t).trim().replace(',','.');const v=parseFloat(t);return t!==''&&v>=0?v:''};
 const dn=t=>t==='free'?'Libre':'Día '+t.slice(1);
-const NAMES=['Hip thrust','Hack squat','Extensiones de piernas','Curl femoral','Elevaciones laterales','Dominadas','Remo en T','Fondos','Abductores','Aductores','Patada en polea','Peso muerto con remo','Curl de bíceps','Extensiones de tríceps','Encogimiento de hombros','Banco 45°','Soga por debajo del braquial'];
 const MED=[['cuello','Cuello'],['pecho','Pecho / busto'],['cintura','Cintura (zona más estrecha)'],['abdomen','Abdomen (a nivel del ombligo)'],['cadera','Cadera (zona más ancha)'],['brazoD','Brazo derecho'],['brazoI','Brazo izquierdo'],['musloD','Muslo derecho'],['musloI','Muslo izquierdo'],['pantD','Pantorrilla derecha'],['pantI','Pantorrilla izquierda']];
 const S={type:'d1',tab:'dias',date:today(),view:'main',ctx:null,cat:[],all:[],meds:[],plan:{days:0,routines:{}},stack:[],name:'',sess:null,med:null,ready:'',auto:true,open:{},f:{day:'',date:''},ptab:'m',rm:{k:'1rm',d:{}},rmOpen:{},rmCalc:{},share:0,imp:null},V={};
 const TOP={main:1,hist:1,plan:1,data:1};
@@ -30,7 +29,7 @@ const planEx=t=>(S.plan.routines[t]||[]).map(e=>mkEx(e.id,e.name,e.s));
 const hyTxt=s=>{const it=s.hy||[];if(!it.length)return '';const t={};it.forEach(x=>t[x.u]=(t[x.u]||0)+x.v);
 return it.length>1?it.map(x=>r2(x.v)+' '+x.u).join(' + ')+' = '+Object.entries(t).map(([u,v])=>r2(v)+' '+u).join(' + '):r2(it[0].v)+' '+it[0].u};
 const hasMed=m=>m.h!==''||m.w!==''||Object.values(m.m||{}).some(v=>v!==''&&v!=null);
-async function load(){S.cat=(await DB.all('catalog')).sort((a,b)=>a.o-b.o);S.all=await DB.all('sessions');
+async function load(){S.cat=(await DB.all('catalog')).sort((a,b)=>a.name.localeCompare(b.name,'es',{sensitivity:'base'}));S.all=await DB.all('sessions');
 const kv=await DB.all('kv'),pf=kv.find(x=>x.k==='perfil')||{};S.name=pf.name||'';S.phone=pf.phone||'';S.cc=pf.cc||'';S.meds=kv.filter(x=>x.k.startsWith('med-'));
 const r1=kv.find(x=>x.k==='1rm');S.rm=r1&&r1.d?r1:{k:'1rm',d:{}};
 const pl=kv.find(x=>x.k==='plan');S.plan=pl?{days:pl.days||0,routines:pl.routines||{}}:{days:0,routines:{}}}
@@ -51,9 +50,9 @@ nv.querySelectorAll('button').forEach(b=>b.dataset.v===a?b.setAttribute('aria-cu
 const render=()=>{const v=S.name?S.view:'setup',n=V[v]();$('#app').replaceChildren(...(S.stack.length&&v!=='setup'?[backBtn()]:[]),n);navSync(v)};
 const fs=(x,i)=>`Serie ${i+1}: ${x.r===''?'–':x.r} rep × ${x.w===''?'–':r2(x.w)} ${x.u||'kg'}`;
 // Campo numérico con unidad editable (kg/lb); convierte desde el valor exacto, sin acumular redondeos
-const numU=(o,vk,uk,l,k,onch,ph)=>h('div',{class:'nu'},
-h('input',{type:'text',inputmode:'decimal','aria-label':l,placeholder:ph||'0',value:o[vk]===''||o[vk]==null?'':r2(o[vk]),oninput:e=>{o[vk]=pn(e.target.value);save(k);onch&&onch()}}),
-h('button',{type:'button',class:'u','aria-label':'Unidad de '+l+': '+(o[uk]||'kg')+'. Pulsa para cambiar',onclick:()=>{const to=(o[uk]||'kg')==='kg'?'lb':'kg',f=to==='lb'?LB:1/LB;if(o[vk]!==''&&o[vk]!=null)o[vk]*=f;o[uk]=to;save(k);render()}},o[uk]||'kg'));
+const numU=(o,vk,uk,l,k,onch,ph,dis)=>h('div',{class:'nu'},
+h('input',{type:'text',inputmode:'decimal','aria-label':l,placeholder:ph||'–',disabled:!!dis,value:o[vk]===''||o[vk]==null?'':r2(o[vk]),oninput:e=>{o[vk]=pn(e.target.value);save(k);onch&&onch()}}),
+h('button',{type:'button',class:'u',disabled:!!dis,'aria-label':'Unidad de '+l+': '+(o[uk]||'kg')+'. Pulsa para cambiar',onclick:()=>{const to=(o[uk]||'kg')==='kg'?'lb':'kg',f=to==='lb'?LB:1/LB;if(o[vk]!==''&&o[vk]!=null)o[vk]*=f;o[uk]=to;save(k);render()}},o[uk]||'kg'));
 const seg=(it,cur,fn)=>h('div',{class:'seg',role:'tablist'},it.map(([v,t])=>h('button',{type:'button',role:'tab','aria-selected':String(v===cur),class:v===cur?'on':'',onclick:()=>fn(v)},t)));
 
 const phoneBox=(c0,p0)=>{const c=h('input',{type:'text',inputmode:'numeric','aria-label':'Código de país',placeholder:'Cód.',value:c0||'',maxlength:3}),
@@ -98,11 +97,11 @@ const st=n=>{const x=S.all.find(z=>z.id===`yo|d${n}|${S.date}`);return !x?'':x.s
 return h('div',{class:'seg',role:'group','aria-label':'Días de entrenamiento'},[...Array(D)].map((_,i)=>{const n=i+1,k=st(n),on='d'+n===S.type;
 return h('button',{type:'button',class:(on?'on ':'')+k,'aria-pressed':String(on),'aria-label':'Día '+n+(k==='done'?', hecho':k==='skip'?', saltado':''),onclick:()=>{S.type='d'+n;go('main')}},String(n))}))}
 let hyIn='',hyU='ml';
-function hidCard(){const s=S.sess,it=s.hy||(s.hy=[]),inp=h('input',{type:'text',inputmode:'decimal','aria-label':'Cantidad de hidratación',placeholder:'Cantidad',value:hyIn,oninput:e=>{hyIn=e.target.value}});
+function hidCard(lock){const s=S.sess,it=s.hy||(s.hy=[]),inp=h('input',{type:'text',inputmode:'decimal','aria-label':'Cantidad de hidratación',placeholder:'Cantidad',value:hyIn,oninput:e=>{hyIn=e.target.value}});
 const add=()=>{const v=pn(inp.value);if(v===''||v<=0)return toast('Escribe una cantidad (ej. 500)');it.push({v,u:hyU});hyIn=String(v);save();render()};
 return h('div',{class:'card'},h('b',{},'Hidratación'),h('p',{class:'mut',style:'margin:2px 0 6px'},'Pomos o ml: escribe la cantidad y toca + para sumarla'),
-h('div',{class:'row'},h('div',{class:'g'},inp),h('div',{class:'g'},seg([['ml','ml'],['pomos','Pomos']],hyU,v=>{hyU=v;hyIn=inp.value;render()})),B('+',add,'sm','Sumar cantidad de hidratación')),
-it.length?h('div',{class:'row',style:'margin-top:8px'},it.map((x,i)=>h('button',{type:'button',class:'u',style:'padding:6px 10px;min-height:36px;min-width:0','aria-label':'Quitar '+r2(x.v)+' '+x.u,onclick:()=>{it.splice(i,1);save();render()}},(i?'+ ':'')+r2(x.v)+' '+x.u+' ×'))):'',
+lock?'':h('div',{class:'row'},h('div',{class:'g'},inp),h('div',{class:'g'},seg([['ml','ml'],['pomos','Pomos']],hyU,v=>{hyU=v;hyIn=inp.value;render()})),B('+',add,'sm','Sumar cantidad de hidratación')),
+it.length?h('div',{class:'row',style:'margin-top:8px'},it.map((x,i)=>h('button',{type:'button',class:'u',disabled:lock,style:'padding:6px 10px;min-height:36px;min-width:0','aria-label':'Quitar '+r2(x.v)+' '+x.u,onclick:()=>{it.splice(i,1);save();render()}},(i?'+ ':'')+r2(x.v)+' '+x.u+' ×'))):'',
 it.length?h('p',{style:'margin:8px 0 0'},h('b',{},'Total: '),hyTxt(s)):'')}
 function diasView(){const D=S.plan.days,s=S.sess;
 if(!D)return h('div',{class:'card'},h('h3',{style:'margin-top:0'},'Crea tus días de entrenamiento'),h('p',{class:'mut'},'Elige cuántos días entrenas y qué ejercicios haces en cada uno. Después, cada día solo tendrás que anotar tus pesos.'),B('Crear mis días',()=>go('plan'),'main'));
@@ -112,25 +111,43 @@ if(skipped)return h('div',{},head,h('div',{class:'card'},h('b',{},'Día '+n+': l
 if(!ready){const c=s.exercises.length;
 return h('div',{},head,h('div',{class:'card'},h('h3',{style:'margin-top:0'},'Día '+n),h('p',{class:'mut'},c?c+(c===1?' ejercicio':' ejercicios'):'Sin ejercicios: agrégalos en Mis días'),
 h('div',{class:'row'},B('Listo. ¡Vamos allá!',start,'main g'),B('Paso de hoy',async()=>{s.exercises=[];s.status='saltado';save();await flush();if(S.plan.days>1)S.type='d'+((+n)%D+1);toast('Día '+n+' saltado');go('main')},'alt g'))))}
-const prev=S.all.filter(x=>x.type===s.type&&x.localDate<s.localDate&&x.exercises.length).sort((a,b)=>b.localDate.localeCompare(a.localDate))[0],p=h('progress'),pt=h('span',{class:'mut'});
+const p=h('progress'),pt=h('span',{class:'mut'}),lock=s.status==='finalizada';
 const prog=()=>{let t=0,d=0;s.exercises.forEach(e=>e.sets.forEach(x=>{t++;if(x.r!==''&&x.w!=='')d++}));p.max=t||1;p.value=d;pt.textContent=d+' de '+t+' series con datos'};prog();
-const cards=s.exercises.map((e,i)=>{const pv=prev&&prev.exercises.find(z=>z.exId===e.exId);
+// Referencia por ejercicio: mayor peso (en kg o lb, el que usaste), mayor número de reps y las series de la última vez
+const refs=exId=>{let best=null,mr=0,last=null;
+S.all.forEach(x=>{if(x.id===s.id)return;const e=x.exercises.find(z=>z.exId===exId);if(!e)return;
+e.sets.forEach(t=>{const kg=t.w===''||t.w==null?0:t.u==='lb'?t.w/LB:t.w;if(kg>0&&(!best||kg>best.kg))best={kg,w:t.w,u:t.u||'kg'};if(t.r>mr)mr=t.r});
+const ss=e.sets.filter(t=>t.r!==''||(t.w!==''&&t.w!=null));if(ss.length&&(!last||x.localDate>last.d))last={d:x.localDate,ss}});
+return{best,mr,last:last&&last.ss}};
+// Mover un ejercicio: también deja el mismo orden en tu rutina de Mis días para la próxima vez
+const mvEx=async(i,d)=>{const j=i+d;if(j<0||j>=s.exercises.length)return;[s.exercises[i],s.exercises[j]]=[s.exercises[j],s.exercises[i]];save();
+try{const L=S.plan.routines[s.type];if(L){const m=new Map(L.map(x=>[x.id,x])),ord=[...new Set(s.exercises.map(e=>e.exId))],n=ord.filter(id=>m.has(id)).map(id=>m.get(id));L.forEach(x=>{if(!ord.includes(x.id))n.push(x)});S.plan.routines[s.type]=n;await DB.put('kv',{k:'plan',days:S.plan.days,routines:S.plan.routines})}}catch(_){}
+render()};
+let anyRef=false;
+const cards=s.exercises.map((e,i)=>{const rf=refs(e.exId);if(rf.best||rf.mr)anyRef=true;
 const top=h('div',{class:'row'},h('button',{type:'button',class:'ex','aria-expanded':String(e.open!==false),onclick:()=>{e.open=e.open===false;save();render()}},h('i',{},i+1),e.name,h('span',{},e.open===false?'▸':'▾')));
 if(e.open===false)return h('div',{class:'card'},top);
-return h('div',{class:'card'},top,h('div',{class:'sr mut'},'#','Peso / unidad','Reps',''),
-e.sets.map((x,j)=>{const q=pv&&pv.sets[j];return h('div',{class:'sr'},h('span',{class:'mut'},j+1),numU(x,'w','u',e.name+' serie '+(j+1)+' peso','s',prog,q&&q.w!==''&&q.w!=null?String(r2(q.w)):''),
-h('input',{type:'text',inputmode:'numeric',list:'dl-r','aria-label':e.name+' serie '+(j+1)+' repeticiones',placeholder:q&&q.r!==''?String(q.r):'reps',value:x.r,oninput:ev=>{const v=parseInt(ev.target.value,10);x.r=v>0?v:'';save();prog()}}),
-B('−',()=>{if(e.sets.length>1){e.sets.splice(j,1);save();render()}},'sm alt','Quitar serie '+(j+1)))}),
-h('div',{class:'row'},B('+ Serie',()=>{const l=e.sets[e.sets.length-1];e.sets.push({r:'',w:'',u:l?l.u:'kg'});save();render()},'sm alt'),
+const lt=rf.last?'Última vez: '+rf.last.map(t=>(t.w===''||t.w==null?'–':r2(t.w)+' '+(t.u||'kg'))+' × '+(t.r===''?'–':t.r)).join(' · '):'';
+return h('div',{class:'card'},top,
+rf.best||rf.mr?h('p',{class:'hint',style:'margin:0 0 4px'},'Tu máximo: '+(rf.best?r2(rf.best.w)+' '+rf.best.u:'–')+' · '+(rf.mr?rf.mr+' reps':'–')):'',lt?h('p',{class:'hint',style:'margin:0 0 4px'},lt):'',
+h('div',{class:'sr mut'},'#','Peso / unidad','Reps',''),
+e.sets.map((x,j)=>h('div',{class:'sr'},h('span',{class:'mut'},j+1),numU(x,'w','u',e.name+' serie '+(j+1)+' peso','s',prog,rf.best?String(r2(x.u==='lb'?rf.best.kg*LB:rf.best.kg)):'',lock),
+h('input',{type:'text',inputmode:'numeric',list:'dl-r',disabled:lock,'aria-label':e.name+' serie '+(j+1)+' repeticiones',placeholder:rf.mr?String(rf.mr):'reps',value:x.r,oninput:ev=>{const v=parseInt(ev.target.value,10);x.r=v>0?v:'';save();prog()}}),
+lock?h('span'):B('−',()=>{if(e.sets.length>1){e.sets.splice(j,1);save();render()}},'sm alt','Quitar serie '+(j+1)))),
+lock?'':h('div',{class:'row'},B('+ Serie',()=>{const l=e.sets[e.sets.length-1];e.sets.push({r:'',w:'',u:l?l.u:'kg'});save();render()},'sm alt'),
+B('↑',()=>mvEx(i,-1),'sm alt','Subir '+e.name),B('↓',()=>mvEx(i,1),'sm alt','Bajar '+e.name),
 B('Cambiar',()=>go('pick',{cb:ids=>{const c=S.cat.find(z=>z.id===ids[0]);e.exId=c.id;e.name=c.name;save();go('main')}}),'sm alt','Cambiar ejercicio '+e.name),
 B('Eliminar',()=>{if(confirm('¿Eliminar '+e.name+' de esta sesión?')){s.exercises.splice(i,1);save();render()}},'sm red','Eliminar el ejercicio '+e.name)))});
 return h('div',{},head,
-h('div',{class:'card'},lab('Peso corporal del día',numU(s,'bw','bwUnit','Peso corporal','s'))),hidCard(),
-h('div',{class:'card'},p,pt,prev?h('p',{class:'mut',style:'margin:6px 0 0;font-size:13px'},'Los números en gris son los de tu última sesión de este día.'):''),cards,
-B('+ Añadir ejercicio',()=>go('pick',{multi:true,cb:ids=>{s.exercises.push(...ids.map(id=>mkEx(id)));save();go('main')}}),'alt'),
-B('Finalizar sesión',async()=>{if(!confirm('¿Finalizar la sesión? Se guardará y se abrirá el resumen. Podrás corregirla después.'))return;s.status='finalizada';s.finished=Date.now();save();await flush();go('sum',s)},'main'),
+lock?h('div',{class:'card'},h('b',{},'Sesión finalizada ✓'),h('p',{class:'mut',style:'margin:4px 0 8px'},'Está protegida para evitar cambios por accidente.'),
+B('Editar sesión',async()=>{if(!confirm('¿Editar esta sesión finalizada? Podrás corregirla y volver a finalizarla.'))return;s.status='en_curso';save();await flush();go('main')},'main'),B('Ver resumen',()=>go('sum',s),'alt')):'',
+h('div',{class:'card'},lab('Peso corporal del día',numU(s,'bw','bwUnit','Peso corporal','s',null,'',lock))),hidCard(lock),
+h('div',{class:'card'},p,pt,anyRef?h('p',{class:'hint',style:'margin:6px 0 0'},'Los números en gris son tu máximo anterior en cada ejercicio: tu referencia para saber cuánto avanzar. Al escribir los tuyos los reemplazas.'):''),
+s.exercises.length?'':h('p',{class:'mut'},'Sin ejercicios: toca «+ Añadir ejercicio».'),cards,
+lock?'':[B('+ Añadir ejercicio',()=>go('pick',{multi:true,cb:ids=>{s.exercises.push(...ids.map(id=>mkEx(id)));save();go('main')}}),'alt'),
+B('Finalizar sesión',async()=>{if(!confirm('¿Finalizar la sesión? Se guardará y quedará protegida (podrás editarla con «Editar sesión»).'))return;s.status='finalizada';s.finished=Date.now();save();await flush();go('sum',s)},'main'),
 B('Limpiar panel',async()=>{if(!confirm('Se borrarán SOLO los ejercicios, series, repeticiones, cargas, peso e hidratación de ESTA sesión ('+dn(s.type)+', '+s.localDate+').\n\nNO se borra: tus días, el catálogo, otras sesiones, historial, medidas corporales ni copias exportadas.\n\n¿Limpiar?'))return;
-s.exercises=[];s.bw='';s.hy=[];s.status='en_curso';save();await flush();render();toast('Panel limpiado')},'red'),exportBox())}
+s.exercises=[];s.bw='';s.hy=[];s.status='en_curso';save();await flush();render();toast('Panel limpiado')},'red')],exportBox())}
 
 const exportBox=()=>h('div',{class:'card noshot'},h('b',{},'Exportar'),
 h('p',{class:'mut'},'Sesión'),h('div',{class:'row'},B('TXT',()=>expDay('ses','txt'),'alt g'),B('PDF',()=>expDay('ses','pdf'),'alt g')),
@@ -148,12 +165,14 @@ MED.map(([k,l],i)=>lab((i+1)+'. '+l+' (cm)',h('input',{type:'text',inputmode:'de
 h('h2',{},'Historial de medidas'),box)}
 
 V.pick=()=>{const c=S.ctx,sel=new Set(),box=h('div'),q=h('input',{type:'search','aria-label':'Buscar ejercicio',placeholder:'Buscar…',oninput:()=>draw()}),nn=h('input',{type:'text','aria-label':'Nuevo ejercicio',placeholder:'Nuevo ejercicio personalizado'});
-function draw(){const k=q.value.toLowerCase();box.replaceChildren(...S.cat.filter(x=>x.name.toLowerCase().includes(k)).map(x=>c.multi?h('label',{class:'card row'},h('input',{type:'checkbox',style:'width:28px',onchange:e=>e.target.checked?sel.add(x.id):sel.delete(x.id)}),x.name):B(x.name,()=>c.cb([x.id]),'alt')))}
+function draw(){const k=q.value.toLowerCase(),L=S.cat.filter(x=>x.name.toLowerCase().includes(k));
+box.replaceChildren(...(L.length?L.map(x=>c.multi?h('label',{class:'card row'},h('input',{type:'checkbox',style:'width:28px',checked:sel.has(x.id),onchange:e=>e.target.checked?sel.add(x.id):sel.delete(x.id)}),x.name):B(x.name,()=>c.cb([x.id]),'alt')):[h('p',{class:'mut'},S.cat.length?'Sin resultados.':'Tu catálogo está vacío. Comienza a incluir tus ejercicios aquí: escribe un nombre arriba y toca «Crear y seleccionar».')]))}
 draw();
-return h('div',{},h('h2',{},c.multi?'Añadir ejercicios':'Cambiar por…'),q,box,
-h('div',{class:'card'},nn,B('Crear y usar',async()=>{const n=nn.value.trim();if(!n)return toast('Escribe un nombre');
-let x=S.cat.find(z=>z.name.toLowerCase()===n.toLowerCase());try{if(!x){x={id:uid(),name:n,o:S.cat.length+1};await DB.put('catalog',x);S.cat.push(x)}}catch(e){return toast('Error: '+e.message)}c.cb([x.id])})),
-c.multi?B('Añadir seleccionados',()=>{if(!sel.size)return toast('Selecciona al menos uno');c.cb([...sel])},'main'):'',B('Cancelar',()=>go(c.back||'main'),'alt'))};
+const mk=async()=>{const n=nn.value.trim();if(!n)return toast('Escribe un nombre');
+let x=S.cat.find(z=>z.name.toLowerCase()===n.toLowerCase());try{if(!x){x={id:uid(),name:n,o:S.cat.length+1};await DB.put('catalog',x);S.cat.push(x);S.cat.sort((a,b)=>a.name.localeCompare(b.name,'es',{sensitivity:'base'}))}}catch(e){return toast('Error: '+e.message)}if(c.multi){sel.add(x.id);nn.value='';q.value='';draw();return toast('«'+x.name+'» creado y seleccionado. Toca «Añadir seleccionados» cuando termines')}c.cb([x.id])};
+return h('div',{},h('h2',{},c.multi?'Añadir ejercicios':'Cambiar por…'),q,
+c.multi?h('div',{class:'row',style:'margin:6px 0'},B('Añadir seleccionados',()=>{if(!sel.size)return toast('Selecciona al menos uno');c.cb([...sel])},'main g'),B('Cancelar',()=>go(c.back||'main'),'alt g')):B('Cancelar',()=>go(c.back||'main'),'alt'),
+h('div',{class:'card'},nn,B(c.multi?'Crear y seleccionar':'Crear y usar',mk)),box)};
 
 V.sum=()=>{const s=S.ctx;
 return h('div',{},h('div',{class:'sum',onclick:()=>document.body.classList.remove('cap')},h('h2',{},'GYM RAT APP'),h('p',{},h('b',{},S.name)),
@@ -223,8 +242,9 @@ const catBox=()=>{const inp=h('input',{type:'text','aria-label':'Nuevo ejercicio
 return h('div',{},h('div',{class:'row'},h('div',{class:'g'},inp),B('Añadir',async()=>{const n=inp.value.trim();
 if(!n)return toast('Escribe un nombre');if(S.cat.some(c=>c.name.toLowerCase()===n.toLowerCase()))return toast('Ya existe');
 await DB.put('catalog',{id:uid(),name:n,o:S.cat.length+1});go('data')},'sm')),
+S.cat.length?'':h('p',{class:'mut'},'Tu catálogo está vacío. Comienza a incluir tus ejercicios aquí.'),
 S.cat.map((c,i)=>h('div',{class:'card row'},h('span',{class:'g'},(i+1)+'. '+c.name),
-B('Renombrar',async()=>{const n=(prompt('Nuevo nombre',c.name)||'').trim();if(n){c.name=n;await DB.put('catalog',c);render()}},'sm alt'),
+B('Renombrar',async()=>{const n=(prompt('Nuevo nombre',c.name)||'').trim();if(n){c.name=n;await DB.put('catalog',c);go('data')}},'sm alt'),
 B('Eliminar',async()=>{if(confirm('¿Eliminar "'+c.name+'" del catálogo? El historial conserva sus registros.')){await DB.del('catalog',c.id);go('data')}},'sm red'))))};
 
 const dl=(n,t,m)=>{const u=URL.createObjectURL(new Blob([t],{type:m}));const a=h('a',{href:u,download:n});document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),4000)};
@@ -282,7 +302,7 @@ if(text[0]==='{')j=JSON.parse(text);
 else{const m=text.replace(/\s+/g,'').match(/GYMRAT([01])\.([A-Za-z0-9_-]+)/);if(!m)return null;let u=unb64(m[2]);if(m[1]==='1')u=await gz(u,false);j=JSON.parse(new TextDecoder().decode(u))}
 if(!j||j.app!=='gym-rat-app'||!Array.isArray(j.sessions))return null;
 const ok=(a,f)=>(Array.isArray(a)?a:[]).filter(x=>x&&typeof x==='object'&&f(x)),cat=ok(j.catalog,x=>x.id&&x.name);
-return{catalog:cat.length?cat:NAMES.map((n,i)=>({id:'ex'+(i+1),name:n,o:i+1})),athletes:[],sessions:ok(j.sessions,x=>x.id&&x.type&&x.localDate&&Array.isArray(x.exercises)),kv:ok(j.preferences,x=>typeof x.k==='string')}}catch(_){return null}}
+return{catalog:cat,athletes:[],sessions:ok(j.sessions,x=>x.id&&x.type&&x.localDate&&Array.isArray(x.exercises)),kv:ok(j.preferences,x=>typeof x.k==='string')}}catch(_){return null}}
 async function restoreFrom(text){try{const o=await readBackup(text);if(!o)return toast('Código o archivo no válido: pega el código completo');
 if(!confirm('Se reemplazarán TODOS los datos de este teléfono por los de la copia ('+o.sessions.length+' sesiones). Lo que tengas ahora se perderá.\n\n¿Cargar mi progreso?'))return;
 dirty.clear();clearTimeout(tm);await DB.replaceAll(o);
@@ -302,12 +322,23 @@ async function wipe(kind){const all=kind==='all';
 if(!confirm(all?'Se borrará TODO: historial, medidas, tus días, el catálogo y tus datos personales. La app quedará como nueva.\n\n¿Ya hiciste un Guardado General?\n\n¿Continuar?':'Se borrarán TODAS las sesiones (con su hidratación), medidas y 1RM. Se conservan tus días, el catálogo y tus datos personales.\n\n¿Ya hiciste un Guardado General?\n\n¿Continuar?'))return;
 if((prompt('Para confirmar escribe BORRAR (no se puede deshacer)')||'').trim().toUpperCase()!=='BORRAR')return toast('Cancelado: no se borró nada');
 try{dirty.clear();clearTimeout(tm);
-const kv=all?[]:(await DB.all('kv')).filter(x=>x.k==='perfil'||x.k==='plan'),cat=all?NAMES.map((n,i)=>({id:'ex'+(i+1),name:n,o:i+1})):await DB.all('catalog');
+const kv=all?[]:(await DB.all('kv')).filter(x=>x.k==='perfil'||x.k==='plan'),cat=all?[]:await DB.all('catalog');
 await DB.replaceAll({catalog:cat,athletes:[],sessions:[],kv});
 S.sess=null;S.med=null;S.hd=null;S.ready='';S.auto=true;S.stack=[];S.open={};S.f={day:'',date:''};S.type='d1';S.tab='dias';S.ptab='m';S.rmOpen={};S.rmCalc={};S.share=0;S.imp=null;
 if(all){S.name='';S.phone='';S.cc=''}
 await go('main');toast(all?'App restablecida de cero':'Historial borrado')}
 catch(e){toast('Error al borrar: '+e.message)}}
+async function updateApp(){try{
+if(!navigator.onLine)return toast('Necesitas internet para buscar la actualización');
+await flush();
+const cur=(await caches.keys()).find(k=>k.startsWith('gymrat-')),t=await(await fetch('service-worker.js',{cache:'no-store'})).text(),nv=(t.match(/V='([^']+)'/)||[])[1];
+if(nv&&nv===cur)return toast('Ya tienes la última versión ('+nv+')');
+toast('Actualizando a '+(nv||'la nueva versión')+'…');
+const reg=navigator.serviceWorker&&await navigator.serviceWorker.getRegistration();if(reg)await reg.update();
+setTimeout(()=>location.reload(),2500)}catch(e){toast('No se pudo actualizar: '+e.message)}}
+const updBox=()=>{const v=h('p',{class:'mut'},'Versión instalada: …');
+caches.keys().then(k=>{v.textContent='Versión instalada: '+(k.find(z=>z.startsWith('gymrat-'))||'desconocida')}).catch(()=>{v.textContent=''});
+return h('div',{},v,h('p',{class:'mut'},'Busca en internet (GitHub) una versión nueva y la instala sin borrar la app. Tus datos no se tocan.'),B('Actualizar a la nueva versión',updateApp,'main'))};
 const wipeBox=()=>h('div',{},h('p',{class:'mut'},'Haz antes un Guardado General si quieres conservar una copia.'),
 B('Borrar historial (sesiones, medidas y 1RM)',()=>wipe('hist'),'red'),
 B('Borrar todo y empezar de cero',()=>wipe('all'),'red'));
@@ -315,6 +346,7 @@ V.data=()=>{const pb=phoneBox(S.cc,S.phone),n=h('input',{type:'text','aria-label
 return h('div',{},h('h2',{},'General'),h('p',{class:'mut'},'Todo se guarda solo en este dispositivo.'),
 dt('pers','Datos personales',lab('Tu nombre',n),pb.el,B('Guardar datos',async()=>{const v=n.value.trim();if(!v)return toast('Escribe tu nombre');const p=pb.get();if(!p)return;
 try{S.name=v;S.cc=p.cc;S.phone=p.phone;await saveProfile();toast('Datos guardados')}catch(e){toast('Error: '+e.message)}},'alt')),
+dt('upd','Actualizar la app',updBox()),
 dt('cat','Creación y edición de catálogo',catBox()),
 dt('code','Cambio de teléfono: guardar / cargar progreso',codeBox()),
 dt('wipe','Borrar datos / empezar de cero',wipeBox()),
@@ -324,7 +356,6 @@ h('div',{class:'card'},h('b',{},'Historial completo'),h('p',{class:'mut'},'Todas
 
 (async()=>{try{
 const dl2=h('datalist',{id:'dl-r'});for(let i=6;i<=30;i++)dl2.append(h('option',{value:i}));document.body.append(dl2);
-if(!(await DB.all('catalog')).length)for(const [i,n] of NAMES.entries())await DB.put('catalog',{id:'ex'+(i+1),name:n,o:i+1});
 navigator.storage&&navigator.storage.persist&&navigator.storage.persist();
 document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>go(b.dataset.v));
 const on=()=>$('#on').textContent=navigator.onLine?'En línea':'Sin conexión';on();addEventListener('online',on);addEventListener('offline',on);

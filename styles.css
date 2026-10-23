@@ -49,3 +49,5 @@ nav button:focus-visible{outline:2px solid #fff;outline-offset:-2px}
 details .card{background:none;box-shadow:none;border:0;border-top:1px solid var(--ln);border-radius:0;padding:8px 0;margin:6px 0 0}
 details[open]>summary{margin-bottom:8px}
 details>.btn{margin:8px 0}
+::placeholder{color:#5a5a64;opacity:1}
+input:disabled,.u:disabled{opacity:.55}
