@@ -26,7 +26,7 @@ input[type=file]{padding:9px;font-size:14px}
 input,select{background:#060608;color:var(--t);border:1px solid var(--ln);border-radius:9px;padding:11px;font-size:16px;width:100%;min-height:44px}
 .nu{display:flex;gap:4px;min-width:0}.nu input{flex:1;min-width:0}
 .u{background:linear-gradient(180deg,#3c3c43,#202024);color:var(--t);border:1px solid var(--ln);border-radius:9px;min-width:46px;font-weight:700}
-.sr{display:grid;grid-template-columns:24px 1.5fr 1fr 44px;gap:6px;align-items:center;margin:6px 0}
+.sr{display:grid;grid-template-columns:24px 2fr 1fr 40px;gap:6px;align-items:center;margin:6px 0}
 .sr.mut{font-size:12px;margin-bottom:0}
 .ex{flex:1;display:flex;gap:8px;align-items:center;text-align:left;background:none;border:0;color:var(--t);font-size:16px;font-weight:700;padding:6px 0;min-height:44px}
 .ex i{font-style:normal;background:linear-gradient(180deg,#f4f4f6,#9d9da8);color:#0a0a0b;border-radius:50%;width:26px;height:26px;display:inline-grid;place-items:center;font-size:13px}
@@ -51,3 +51,9 @@ details[open]>summary{margin-bottom:8px}
 details>.btn{margin:8px 0}
 ::placeholder{color:#5a5a64;opacity:1}
 input:disabled,.u:disabled{opacity:.55}
+.u.plus{min-width:38px;padding:0 6px;font-size:18px}
+.seg.wd button{min-width:0;padding:10px 0;font-size:14px}
+textarea.note{font:15px/1.35 system-ui,sans-serif;word-break:normal;min-height:64px}
+.nudge{color:#e7c35a}
+input.acc{border-color:#5fbf7f}
+input[readonly]{cursor:pointer}
