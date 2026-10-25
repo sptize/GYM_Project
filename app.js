@@ -10,7 +10,7 @@ const today=()=>{const d=new Date();return d.getFullYear()+'-'+String(d.getMonth
 const pn=t=>{t=String(t).trim().replace(',','.');const v=parseFloat(t);return t!==''&&v>=0?v:''};
 const dn=t=>t==='free'?'Libre':'Día '+t.slice(1);
 const MED=[['cuello','Cuello'],['pecho','Pecho / busto'],['cintura','Cintura (zona más estrecha)'],['abdomen','Abdomen (a nivel del ombligo)'],['cadera','Cadera (zona más ancha)'],['brazoD','Brazo derecho'],['brazoI','Brazo izquierdo'],['musloD','Muslo derecho'],['musloI','Muslo izquierdo'],['pantD','Pantorrilla derecha'],['pantI','Pantorrilla izquierda']];
-const S={type:'d1',tab:'dias',date:today(),view:'main',ctx:null,cat:[],all:[],meds:[],plan:{days:0,routines:{}},stack:[],name:'',sess:null,med:null,ready:'',auto:true,open:{},f:{day:'',date:''},ptab:'m',rm:{k:'1rm',d:{}},rmOpen:{},rmCalc:{},share:0,imp:null,rest:false},V={};
+const S={type:'d1',tab:'dias',date:today(),view:'main',ctx:null,cat:[],all:[],meds:[],plan:{days:0,routines:{}},stack:[],name:'',sess:null,med:null,ready:'',auto:true,open:{},f:{day:'',date:''},ptab:'m',rm:{k:'1rm',d:{}},rmOpen:{},rmCalc:{},share:0,imp:null,rest:false,others:false},V={};
 const TOP={main:1,hist:1,plan:1,data:1};
 function toast(m){const t=$('#toast');t.textContent=m;t.hidden=false;clearTimeout(toast.t);toast.t=setTimeout(()=>t.hidden=true,4000)}
 const saveProfile=()=>DB.put('kv',{k:'perfil',name:S.name,phone:S.phone,cc:S.cc});
@@ -62,14 +62,15 @@ const kv=await DB.all('kv'),pf=kv.find(x=>x.k==='perfil')||{};S.name=pf.name||''
 const r1=kv.find(x=>x.k==='1rm');S.rm=r1&&r1.d?r1:{k:'1rm',d:{}};
 const pl=kv.find(x=>x.k==='plan');S.plan=pl?{days:pl.days||0,routines:pl.routines||{},sched:pl.sched||{}}:{days:0,routines:{},sched:{}}}
 // Día que toca hoy: el que ya tiene registro en la fecha, o el siguiente al último registrado (cíclico)
-function autoDay(){S.rest=false;const D=S.plan.days;if(!D)return S.type;
+function autoDay(){S.rest=false;S.others=false;const D=S.plan.days;if(!D)return S.type;
 const L=S.all.filter(x=>/^d[1-7]$/.test(x.type)&&x.localDate<=S.date).sort((a,b)=>a.localDate.localeCompare(b.localDate)||(a.modified||0)-(b.modified||0)),l=L[L.length-1];
 if(l&&l.localDate===S.date&&l.status!=='saltado')return l.type;
+if(S.all.some(x=>x.type==='free'&&x.localDate===S.date&&x.exercises.length))return 'free';
 if(hasSched()){const t=schedDay(wdOf(S.date));if(t)return t;S.rest=true;const nx=nextSched(S.date);return nx?nx.t:'d1'}
 if(!l)return 'd1';return 'd'+((+l.type.slice(1))%D+1)}
 // Una sesión por tipo de día + fecha: al reabrir se recupera sola. Nueva: copia ejercicios de tu última sesión del mismo día.
 async function ensure(){const id=`yo|${S.type}|${S.date}`;let s=S.all.find(x=>x.id===id);
-if(!s){const pe=planEx(S.type),p=pe.length?null:S.all.filter(x=>x.type===S.type&&x.id!==id&&x.exercises.length).sort((a,b)=>b.localDate.localeCompare(a.localDate))[0];
+if(!s){const pe=planEx(S.type),p=pe.length||S.type==='free'?null:S.all.filter(x=>x.type===S.type&&x.id!==id&&x.exercises.length).sort((a,b)=>b.localDate.localeCompare(a.localDate))[0];
 s={id,athlete:'yo',type:S.type,date:new Date().toISOString(),localDate:S.date,bw:'',bwUnit:'kg',exercises:pe.length?pe:p?structuredClone(p.exercises):[],hy:[],status:'en_curso',created:Date.now(),modified:Date.now()}}
 S.sess=s;const k='med-'+S.date;S.med=S.meds.find(x=>x.k===k)||{k,date:S.date,h:'',w:'',wu:'kg',m:{}};}
 async function go(v,c,bk){await flush();if(!bk&&v!==S.view)S.stack.push({view:S.view,ctx:S.ctx});if(TOP[v])S.stack=[];S.view=v;S.ctx=c;try{await load();if(v==='main'){if(S.auto){S.type=autoDay();S.auto=false}await ensure()}}catch(e){toast('Error de base de datos: '+e.message);return}render();scrollTo(0,0)}
@@ -137,7 +138,7 @@ return card}))}
 function dayStrip(){const D=S.plan.days;
 const st=n=>{const x=S.all.find(z=>z.id===`yo|d${n}|${S.date}`);return !x?'':x.status==='finalizada'?'done':x.status==='saltado'?'skip':''};
 return h('div',{class:'seg',role:'group','aria-label':'Días de entrenamiento'},[...Array(D)].map((_,i)=>{const n=i+1,k=st(n),on='d'+n===S.type;
-return h('button',{type:'button',class:(on?'on ':'')+k,'aria-pressed':String(on),'aria-label':'Día '+n+(k==='done'?', hecho':k==='skip'?', saltado':''),onclick:()=>{S.type='d'+n;S.rest=false;go('main')}},String(n))}))}
+return h('button',{type:'button',class:(on?'on ':'')+k,'aria-pressed':String(on),'aria-label':'Día '+n+(k==='done'?', hecho':k==='skip'?', saltado':''),onclick:()=>{S.type='d'+n;S.rest=false;S.others=false;go('main')}},String(n))}))}
 let hyIn='',hyU='ml';
 function hidCard(lock){const s=S.sess,it=s.hy||(s.hy=[]),inp=h('input',{type:'text',inputmode:'decimal','aria-label':'Cantidad de hidratación',placeholder:'Cantidad',value:hyIn,oninput:e=>{hyIn=e.target.value}});
 const add=()=>{const v=pn(inp.value);if(v===''||v<=0)return toast('Escribe una cantidad (ej. 500)');it.push({v,u:hyU});hyIn=String(v);save();render()};
@@ -147,8 +148,13 @@ it.length?h('div',{class:'row',style:'margin-top:8px'},it.map((x,i)=>h('button',
 it.length?h('p',{style:'margin:8px 0 0'},h('b',{},'Total: '),hyTxt(s)):'')}
 function diasView(){const D=S.plan.days,s=S.sess;
 if(!D)return h('div',{class:'card'},h('h3',{style:'margin-top:0'},'Crea tus días de entrenamiento'),h('p',{class:'mut'},'Elige cuántos días entrenas y qué ejercicios haces en cada uno. Después, cada día solo tendrás que anotar tus pesos.'),B('Crear mis días',()=>go('plan'),'main'));
-if(S.rest){const nx=nextSched(S.date);return h('div',{},dayStrip(),h('div',{class:'card'},h('h3',{style:'margin-top:0'},'😴 Hoy es día de descanso'),h('p',{class:'mut'},nx?'Tu próxima rutina: Día '+nx.t.slice(1)+' ('+WDN[nx.wd]+').':'Descansa y recupérate.'),h('p',{class:'hint'},'Recuperar también es entrenar. ¡Hidrátate y duerme bien! 💧'),B('Entrenar de todos modos',()=>{S.rest=false;go('main')},'alt')))}
-const n=s.type.slice(1),persisted=S.all.some(z=>z.id===s.id),skipped=s.status==='saltado',ready=!skipped&&(S.ready===s.id||persisted),head=h('div',{},dayStrip());
+if(S.rest&&!S.others){const nx=nextSched(S.date);return h('div',{},h('div',{class:'card'},h('h3',{style:'margin-top:0'},'😴 Día de descanso'),h('p',{class:'mut'},nx?'Tu próxima rutina: Día '+nx.t.slice(1)+' ('+WDN[nx.wd]+').':'Descansa y recupérate.'),h('p',{class:'hint'},'Recuperar también es entrenar. ¡Hidrátate y duerme bien! 💧'),B('¿Deseas entrenar hoy?',()=>{S.others=true;render()},'alt')))}
+if(S.rest)return h('div',{},h('div',{class:'card'},h('h3',{style:'margin-top:0'},'¿Deseas entrenar hoy?'),h('p',{class:'mut'},'Elige una de tus rutinas o crea tu propia rutina para hoy.'),dayStrip(),B('Crear mi propia rutina para hoy',()=>{S.type='free';S.rest=false;S.others=false;S.ready='yo|free|'+S.date;go('main')},'main'),B('Mejor descansar',()=>{S.others=false;render()},'alt')));
+const free=s.type==='free',n=free?'':s.type.slice(1),persisted=S.all.some(z=>z.id===s.id),skipped=s.status==='saltado',ready=free||(!skipped&&(S.ready===s.id||persisted)),
+sch=hasSched(),today=sch?schedDay(wdOf(S.date)):null,
+head=h('div',{},ready&&(free||sch&&!S.others)?h('p',{style:'font-weight:700;margin:6px 0 2px'},free?'Rutina propia de hoy':'Día '+n+schedTxt(n)+(today&&s.type!==today?' · por esta ocasión':'')):'',
+sch?B(S.others?'Ocultar otros días':'¿Quieres hacer otra rutina por esta ocasión?',()=>{S.others=!S.others;render()},'sm alt'):'',
+!sch||S.others?dayStrip():'');
 const start=async()=>{if(skipped||!s.exercises.length&&!persisted)s.exercises=planEx(s.type);s.status='en_curso';S.ready=s.id;save();await flush();go('main')};
 if(skipped)return h('div',{},head,h('div',{class:'card'},h('b',{},'Día '+n+': lo saltaste hoy'),B('Listo, hacerlo ahora',start,'main')));
 if(!ready){const c=s.exercises.length;
