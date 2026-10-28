@@ -31,6 +31,7 @@ input,select{background:#060608;color:var(--t);border:1px solid var(--ln);border
 .ex{flex:1;display:flex;gap:8px;align-items:center;text-align:left;background:none;border:0;color:var(--t);font-size:16px;font-weight:700;padding:6px 0;min-height:44px}
 .ex i{font-style:normal;background:linear-gradient(180deg,#f4f4f6,#9d9da8);color:#0a0a0b;border-radius:50%;width:26px;height:26px;display:inline-grid;place-items:center;font-size:13px}
 .ex span{margin-left:auto;color:var(--m)}
+.tn{color:var(--m);font-size:11px;line-height:1.35;margin:4px 0 0}
 .mut{color:var(--m)}progress{width:100%;height:10px;accent-color:#d4d4dc}h2{margin:8px 0}
 #toast{position:fixed;bottom:84px;left:12px;right:12px;background:#26262b;border:1px solid #55555e;padding:12px;border-radius:10px;z-index:9}
 button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid #fff}
