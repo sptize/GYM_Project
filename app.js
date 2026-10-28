@@ -205,12 +205,11 @@ const mvEx=async(i,d)=>{const j=i+d;if(j<0||j>=s.exercises.length)return;[s.exer
 try{const L=S.plan.routines[s.type];if(L){const m=new Map(L.map(x=>[x.id,x])),ord=[...new Set(s.exercises.map(e=>e.exId))],n=ord.filter(id=>m.has(id)).map(id=>m.get(id));L.forEach(x=>{if(!ord.includes(x.id))n.push(x)});S.plan.routines[s.type]=n;await savePlan()}}catch(_){}
 render()};
 let anyRef=false;
-const OPT=m=>m==='sec'?[20,30,45,60,90,120]:[6,8,10,12,15,20,25];
 const cards=s.exercises.map((e,i)=>{const sec=e.mode==='sec',rf=refs(e.exId,sec?'sec':'reps');if(rf.best||rf.mr)anyRef=true;
 const cat=S.cat.find(z=>z.id===e.exId),rest=(cat&&cat.rest)||90;
 const top=h('div',{class:'row'},h('button',{type:'button',class:'ex','aria-expanded':String(e.open!==false),onclick:()=>{e.open=e.open===false;save();render()}},h('i',{},i+1),e.name,h('span',{},e.open===false?'▸':'▾')),
-h('button',{type:'button',class:'btn sm alt tc','data-tc':e.exId,'aria-label':'Tiempo de descanso '+fmtT(rest)+'. Pulsa para cambiar entre 1:30 y 2:00',onclick:()=>{if(cat){cat.rest=rest===90?120:90;DB.put('catalog',cat)}render()}},fmtT(rest)),
-h('button',{type:'button',class:'btn sm tb','data-tm':e.exId,'aria-label':'Iniciar descanso de '+e.name,onclick:()=>tmStart(e.exId)},'▶ ⏱'));
+...(e.open===false?[]:[h('button',{type:'button',class:'btn sm alt tc','data-tc':e.exId,'aria-label':'Tiempo de descanso '+fmtT(rest)+'. Pulsa para cambiar entre 1:30 y 2:00',onclick:()=>{if(cat){cat.rest=rest===90?120:90;DB.put('catalog',cat)}render()}},fmtT(rest)),
+h('button',{type:'button',class:'btn sm tb','data-tm':e.exId,'aria-label':'Iniciar descanso de '+e.name,onclick:()=>tmStart(e.exId)},'▶ ⏱')]));
 if(e.open===false)return h('div',{class:'card'},top);
 const lt=rf.last?'Última vez: '+rf.last.map(t=>(t.w===''||t.w==null?(sec?'':'– × '):r2(t.w)+' '+(t.u||'kg')+' × ')+(t.r===''?'–':t.r+(sec?' s':''))).join(' · '):'';
 const pl=lock?null:plateau(e.exId),cur=Math.max(0,...e.sets.map(kgOf)),wRef=x=>rf.best?r2(x.u==='lb'?rf.best.kg*LB:rf.best.kg):0;
@@ -230,19 +229,13 @@ rf.best||rf.mr?h('p',{class:'hint',style:'margin:0 0 4px'},'Tu máximo: '+(rf.be
 pl&&cur<=pl.kg+0.05?h('p',{class:'hint nudge',style:'margin:0 0 4px'},'⏳ Ya llevas mucho tiempo con '+r2(pl.w)+' '+pl.u+', es tiempo de subir algo más, inténtalo 💪'):'',
 h('div',{class:'sr mut'},'#','Peso / unidad',h('button',{type:'button',class:'modeb',disabled:lock,'aria-label':'Cambiar entre repeticiones y segundos',onclick:()=>{e.mode=sec?'reps':'sec';if(cat){cat.mode=e.mode;DB.put('catalog',cat)}save();render()}},sec?'Sec ⇄':'Reps ⇄'),'Esf.'),
 e.sets.map((x,j)=>{
-const pk=h('div',{class:'pk',hidden:true},OPT(e.mode).map(v=>h('button',{type:'button',class:'chip',onclick:()=>{x.r=v;rIn.value=String(v);pk.hidden=true;st='pick';save();prog();notify(x)}},String(v))),
-h('button',{type:'button',class:'chip',onclick:()=>{pk.hidden=true;st='manual';rIn.readOnly=false;rIn.focus();rIn.select()}},'Otro'));
-// Reps: 1.er toque acepta la referencia, 2.º abre las opciones, 3.º escribe a mano (sin referencia: 1.º opciones, 2.º a mano)
-let st=rf.mr>0&&x.r===''?'ref':'pick';
-const rIn=h('input',{type:'text',inputmode:'numeric',disabled:lock,readonly:!lock,'aria-label':e.name+' serie '+(j+1)+(sec?' segundos':' repeticiones'),placeholder:rf.mr?String(rf.mr):(sec?'seg':'reps'),value:x.r,
-oninput:ev=>{const v=parseInt(ev.target.value,10);x.r=v>0?v:'';save();prog()},
-onblur:()=>{if(st==='manual'){st='pick';rIn.readOnly=true;notify(x)}},
-onclick:()=>{if(lock)return;if(st==='ref'){x.r=rf.mr;rIn.value=String(rf.mr);rIn.classList.add('acc');st='pick';save();prog();notify(x);rIn.blur()}
-else if(st==='pick'){if(pk.hidden)pk.hidden=false;else{pk.hidden=true;st='manual';rIn.readOnly=false;rIn.focus();rIn.select()}}}});
+const rIn=h('input',{type:'text',inputmode:'numeric',list:sec?'dl-s':'dl-r',disabled:lock,readonly:!lock&&rf.mr>0&&x.r==='','aria-label':e.name+' serie '+(j+1)+(sec?' segundos':' repeticiones'),placeholder:rf.mr?String(rf.mr):(sec?'seg':'reps'),value:x.r,
+oninput:ev=>{const v=parseInt(ev.target.value,10);x.r=v>0?v:'';save();prog()},onchange:()=>notify(x),onfocus:ev=>{if(!ev.target.readOnly)ev.target.select()},
+onclick:ev=>{const q2=ev.target;if(q2.readOnly&&rf.mr){q2.readOnly=false;x.r=rf.mr;q2.value=String(rf.mr);q2.classList.add('acc');q2.blur();save();prog();notify(x)}}});
 const eb=h('button',{type:'button',class:'u eff',disabled:lock,'aria-label':'Esfuerzo de la serie '+(j+1)+': '+(ETX[x.e]||'sin marcar')+'. Pulsa para cambiar',onclick:()=>{x.e=NXT[x.e||''];eb.textContent=EMO[x.e||'']||'○';eb.setAttribute('aria-label','Esfuerzo de la serie '+(j+1)+': '+(ETX[x.e]||'sin marcar')+'. Pulsa para cambiar');save()}},EMO[x.e||'']||'○');
 const nuEl=numU(x,'w','u',e.name+' serie '+(j+1)+' peso','s',()=>{prog();refresh()},wr(j)?String(wr(j)):'',lock,{refFn:lock?null:()=>wr(j),force:j>0,calc:!lock,commit:()=>{notify(x);refresh()},onunit:j===0?(to,f)=>e.sets.slice(1).forEach(y=>{if((y.u||'kg')!==to){if(y.w!==''&&y.w!=null)y.w*=f;y.u=to}}):null});
 wins[j]=nuEl.querySelector('input');
-return h('div',{},h('div',{class:'sr'},h('span',{class:'mut'},j+1),nuEl,rIn,eb),pk)}),
+return h('div',{class:'sr'},h('span',{class:'mut'},j+1),nuEl,rIn,eb)}),
 h('label',{},'Notas del ejercicio',h('textarea',{class:'note',rows:2,disabled:lock,'aria-label':'Notas de '+e.name,placeholder:rf.note?'Última nota: '+rf.note:'Escribe una nota…',oninput:ev=>{e.note=ev.target.value;save()}},e.note||'')),
 lock?'':h('div',{class:'row'},B('+ Serie',()=>{const l=e.sets[e.sets.length-1];e.sets.push({r:'',w:'',u:l?l.u:unitFor(e.exId)});save();render()},'sm alt'),
 B('− Serie',()=>{if(e.sets.length>1){e.sets.pop();save();render()}},'sm alt','Quitar la última serie'),
@@ -472,7 +465,7 @@ B('Guardado General',()=>exp('json'),'main'),
 h('div',{class:'card'},h('b',{},'Historial completo'),h('p',{class:'mut'},'Todas las sesiones (con su hidratación) y medidas, para leer o compartir.'),h('div',{class:'row'},B('TXT',()=>exp('txt'),'alt g'),B('PDF',()=>exp('pdf'),'alt g')))))};
 
 (async()=>{try{
-const dl2=h('datalist',{id:'dl-r'});for(let i=6;i<=30;i++)dl2.append(h('option',{value:i}));document.body.append(dl2);
+const dl2=h('datalist',{id:'dl-r'}),dl3=h('datalist',{id:'dl-s'});[6,8,10,12,15,20,25].forEach(i=>dl2.append(h('option',{value:i})));[20,30,45,60,90,120].forEach(i=>dl3.append(h('option',{value:i})));document.body.append(dl2,dl3);
 navigator.storage&&navigator.storage.persist&&navigator.storage.persist();
 document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>go(b.dataset.v));
 const on=()=>$('#on').textContent=navigator.onLine?'En línea':'Sin conexión';on();addEventListener('online',on);addEventListener('offline',on);
