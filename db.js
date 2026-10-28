@@ -11,3 +11,4 @@ put:async(s,v)=>rq((await st(s,'readwrite')).put(v)),del:async(s,k)=>rq((await s
 async replaceAll(data){const x=await open();return new Promise((ok,no)=>{const t=x.transaction(S,'readwrite');
 S.forEach(s=>t.objectStore(s).clear());S.forEach(s=>(data[s]||[]).forEach(v=>t.objectStore(s).put(v)));
 t.oncomplete=ok;t.onerror=()=>no(t.error);t.onabort=()=>no(t.error)})}}})();
+
