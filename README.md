@@ -25,3 +25,4 @@ Datos personales, Creación y edición de catálogo y Guardado General son despl
 
 ## Borrar datos
 General → *Borrar datos / empezar de cero*: «Borrar historial» (sesiones y medidas) o «Borrar todo» (deja la app como nueva). Pide escribir BORRAR para confirmar.
+
