@@ -403,6 +403,17 @@ return [`GYM RAT APP — ${S.name}`,`Historial completo (exportado ${today()})`,
 ...(ms.length?['','MEDIDAS CORPORALES — HISTORIAL',...ms.flatMap(m=>['',`Fecha: ${m.date}`,...medTxt(m).split('\n').slice(1)])]:[])].join('\n')};
 async function backupObj(){await flush();await load();const sess=S.all.filter(s=>s.exercises.length||s.status==='saltado').sort((a,b)=>a.date.localeCompare(b.date));
 return{app:'gym-rat-app',schema:1,exportedAt:new Date().toISOString(),catalog:await DB.all('catalog'),athletes:[],preferences:await DB.all('kv'),sessions:sess}}
+const IA_PROMPT=`Actúa como un entrenador de fuerza e hipertrofia con experiencia. Abajo está mi historial completo de la app GYM RAT APP: sesiones con series, peso y repeticiones (o segundos), esfuerzo percibido (RIR/RPE), 1RM estimado, hidratación, pulso en reposo y medidas corporales.
+Evalúa mi progreso y respóndeme en español, claro y por secciones:
+1. Resumen general: constancia (frecuencia y días saltados) y tendencia de las últimas semanas.
+2. Progresión por ejercicio: qué sube, qué está estancado y qué retrocede (peso, repeticiones, 1RM).
+3. Volumen y balance: series por grupo muscular, descompensaciones y ejercicios que faltan o sobran.
+4. Esfuerzo y recuperación: si entreno muy cerca del fallo o muy lejos; qué dicen la hidratación y el pulso en reposo.
+5. Medidas corporales: cambios y qué significan.
+6. Plan de ajustes: de 5 a 8 acciones concretas para las próximas 4 semanas (pesos o repeticiones objetivo, descansos, cambios de ejercicio).
+Si falta algún dato para concluir algo, dímelo en lugar de inventarlo. No des consejos médicos; si ves señales de lesión o sobreentrenamiento, avísame para consultarlo con un profesional.
+
+--- MIS DATOS ---`;
 // Código de respaldo (para cambiar de teléfono): todo tu progreso en un texto comprimido
 async function backupCode(){const u=new TextEncoder().encode(JSON.stringify(await backupObj()));
 return typeof CompressionStream!=='undefined'?'GYMRAT1.'+b64(await gz(u,true)):'GYMRAT0.'+b64(u)}
@@ -418,15 +429,32 @@ if(!confirm('Se reemplazarán TODOS los datos de este teléfono por los de la co
 dirty.clear();clearTimeout(tm);await DB.replaceAll(o);
 S.sess=null;S.med=null;S.hd=null;S.ready='';S.auto=true;S.stack=[];S.open={};S.f={day:'',date:''};S.type='d1';S.tab='dias';S.ptab='m';S.rmOpen={};S.rmCalc={};S.share=0;S.imp=null;S.name='';
 await go('main');toast('Progreso cargado')}catch(e){toast('Error al cargar: '+e.message)}}
-const codeBox=()=>{const out=h('div'),ta=h('textarea',{rows:3,'aria-label':'Código de respaldo','placeholder':'Pega aquí tu código de respaldo (empieza con GYMRAT)'});
-return h('div',{},h('p',{class:'mut'},'Si cambias de teléfono: en el viejo crea tu código y guárdalo (envíatelo por WhatsApp o en tus notas). En el nuevo, pégalo y carga tu progreso. Incluye sesiones, medidas, 1RM, tus días y el catálogo.'),
-B('Guardar mi progreso (crear código)',async()=>{try{const c=await backupCode();out.replaceChildren(h('p',{class:'hint'},'Código listo ('+c.length+' caracteres). Cópialo y guárdalo en un lugar seguro: contiene todos tus datos.'),shareBox(c,'Respaldo de GYM RAT APP:'))}catch(e){toast('Error al crear el código: '+e.message)}},'main'),out,
-h('div',{class:'card'},h('b',{},'Cargar mi progreso'),ta,B('Cargar desde el código',()=>restoreFrom(ta.value),'alt'),
-lab('O elige un archivo de Guardado General (.json)',h('input',{type:'file',accept:'.json,application/json',onchange:async e=>{const f=e.target.files[0];if(f)restoreFrom(await f.text());e.target.value=''}}))))};
+// WhatsApp: abre el chat de tu número con el código de recuperación; el envío lo confirmas tú
+async function waCode(){try{await flush();await load();
+if(!S.phone||!S.cc){toast('Primero guarda tu número de WhatsApp en Datos Personales');S.open.pers=true;return go('data')}
+if(!navigator.onLine)return toast('WhatsApp necesita conexión a internet');
+const c=await backupCode();let t='Respaldo de GYM RAT APP. Para recuperarlo: General → Recuperar por el código enviado por WhatsApp.\n'+c;
+if(t.length>3500){await copyTxt(c);t='Respaldo de GYM RAT APP. Mantén pulsado aquí, elige Pegar (el código ya está copiado) y envía.'}
+const a=h('a',{href:`https://wa.me/${S.cc}${S.phone}?text=${encodeURIComponent(t)}`,target:'_blank',rel:'noopener'});document.body.append(a);a.click();a.remove()}
+catch(e){toast('Error al preparar el código: '+e.message)}}
+const tn=t=>h('p',{class:'tn'},t);
+const fileIn=()=>h('input',{type:'file',accept:'.json,application/json,text/plain',style:'display:none',onchange:async e=>{const f=e.target.files[0];if(f)await restoreFrom(await f.text());e.target.value=''}});
+const backupBox=()=>{const ta=h('textarea',{rows:3,'aria-label':'Código de recuperación',placeholder:'Copia el código aquí (empieza con GYMRAT)'}),f1=fileIn(),f2=fileIn();
+return h('div',{},
+h('div',{class:'card'},B('Guardar Progreso en Drive',shareBackup,'main'),tn('Abre el menú de compartir del teléfono para que elijas Drive. Guarda un archivo con todos tus datos.')),
+h('div',{class:'card'},B('Guardar Progreso en el móvil',()=>exp('json'),'alt'),tn('Descarga a este móvil el archivo con todos tus datos: sesiones, medidas, 1RM, hidratación, tus días y el catálogo.')),
+h('div',{class:'card'},B('Enviar el código de recuperación a WhatsApp',waCode,'wa'),tn('Crea un código con todo tu progreso y abre el chat de tu número guardado en Datos Personales. Tú confirmas el envío.')),
+h('div',{class:'card'},B('Recuperar mi progreso en Drive',()=>f1.click(),'alt'),f1,tn('Elige en Drive el archivo que guardaste. Reemplaza todos los datos de este móvil.')),
+h('div',{class:'card'},B('Recuperar mi progreso en el móvil',()=>f2.click(),'alt'),f2,tn('Elige el archivo guardado en este móvil (normalmente en Descargas). Reemplaza todos los datos de este móvil.')),
+h('div',{class:'card'},ta,B('Recuperar por el código enviado por WhatsApp',()=>restoreFrom(ta.value),'alt'),tn('Copia el código del chat de WhatsApp (empieza con GYMRAT), pégalo en el cuadro y toca el botón. Reemplaza todos los datos de este móvil.')))};
 async function exp(kind){try{await flush();await load();const d=today();
 if(kind==='json'){dl(`gym-rat-backup-${d}.json`,JSON.stringify(await backupObj(),null,1),'application/json')}
-else{if(!S.all.some(s=>s.exercises.length)&&!S.meds.some(hasMed))return toast('Aún no hay datos para exportar');out(`gym-rat-historial-${d}`,fullTxt(),kind)}
+else{if(!S.all.some(s=>s.exercises.length)&&!S.meds.some(hasMed))return toast('Aún no hay datos para exportar');kind==='ia'?out(`gym-rat-evaluacion-ia-${d}`,IA_PROMPT+'\n\n'+fullTxt(),'txt'):out(`gym-rat-historial-${d}`,fullTxt(),kind)}
 toast('Exportación lista')}catch(e){toast('Error al exportar: '+e.message)}}
+// Guardado General por el menú de compartir del teléfono (ahí eliges Drive); si no se puede, lo descarga como siempre
+async function shareBackup(){try{await flush();await load();const n=`gym-rat-backup-${today()}.json`,t=JSON.stringify(await backupObj(),null,1),f=new File([t],n,{type:'application/json'});
+if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'Respaldo GYM RAT APP'});toast('Respaldo enviado')}
+else{dl(n,t,'application/json');toast('Tu teléfono no permite compartir: se descargó el archivo. Súbelo a Drive desde Archivos')}}catch(e){if(e&&e.name==='AbortError')return;toast('Error al compartir: '+e.message)}}
 // Borrado: 'hist' = sesiones, medidas e hidratación (conserva tus días, catálogo y datos); 'all' = todo, como app nueva
 async function wipe(kind){const all=kind==='all';
 if(!confirm(all?'Se borrará TODO: historial, medidas, tus días, el catálogo y tus datos personales. La app quedará como nueva.\n\n¿Ya hiciste un Guardado General?\n\n¿Continuar?':'Se borrarán TODAS las sesiones (con su hidratación), medidas y 1RM. Se conservan tus días, el catálogo y tus datos personales.\n\n¿Ya hiciste un Guardado General?\n\n¿Continuar?'))return;
@@ -454,15 +482,15 @@ B('Borrar historial (sesiones, medidas y 1RM)',()=>wipe('hist'),'red'),
 B('Borrar todo y empezar de cero',()=>wipe('all'),'red'));
 V.data=()=>{const pb=phoneBox(S.cc,S.phone),n=h('input',{type:'text','aria-label':'Tu nombre',value:S.name,maxlength:40});
 return h('div',{},h('h2',{},'General'),h('p',{class:'mut'},'Todo se guarda solo en este dispositivo.'),
-dt('pers','Datos personales',lab('Tu nombre',n),pb.el,B('Guardar datos',async()=>{const v=n.value.trim();if(!v)return toast('Escribe tu nombre');const p=pb.get();if(!p)return;
+dt('pers','Datos Personales',lab('Tu nombre',n),pb.el,B('Guardar datos',async()=>{const v=n.value.trim();if(!v)return toast('Escribe tu nombre');const p=pb.get();if(!p)return;
 try{S.name=v;S.cc=p.cc;S.phone=p.phone;await saveProfile();toast('Datos guardados')}catch(e){toast('Error: '+e.message)}},'alt')),
-dt('upd','Actualizar la app',updBox()),
-dt('cat','Creación y edición de catálogo',catBox()),
-dt('code','Cambio de teléfono: guardar / cargar progreso',codeBox()),
-dt('wipe','Borrar datos / empezar de cero',wipeBox()),
-dt('save','Guardado General',h('p',{class:'mut'},'«Guardado General» descarga un archivo con todos tus datos (incluye tus días y la hidratación de cada sesión); TXT y PDF son para leer o compartir.'),
-B('Guardado General',()=>exp('json'),'main'),
-h('div',{class:'card'},h('b',{},'Historial completo'),h('p',{class:'mut'},'Todas las sesiones (con su hidratación) y medidas, para leer o compartir.'),h('div',{class:'row'},B('TXT',()=>exp('txt'),'alt g'),B('PDF',()=>exp('pdf'),'alt g')))))};
+dt('cat','Edición de Catálogo',catBox()),
+dt('back','Guardado General y Recuperación de Datos',backupBox()),
+dt('wipe','Borrar Datos / Empezar de cero',wipeBox()),
+dt('pdf','Resumen General en PDF',
+h('div',{class:'card'},B('Exportar PDF con todos mis datos',()=>exp('pdf'),'main'),tn('Todas las sesiones (con su hidratación) y las medidas en un PDF para leer o compartir.')),
+h('div',{class:'card'},B('Exportar Txt con prompt incluido para evaluación IA',()=>exp('ia'),'alt'),tn('Un TXT con todos tus datos y, al inicio, las instrucciones para que una IA (Claude, ChatGPT…) evalúe tu progreso. Adjúntalo o pégalo en la IA.'))),
+dt('upd','Actualización de la APP',updBox()))};
 
 (async()=>{try{
 const dl2=h('datalist',{id:'dl-r'}),dl3=h('datalist',{id:'dl-s'});[6,8,10,12,15,20,25].forEach(i=>dl2.append(h('option',{value:i})));[20,30,45,60,90,120].forEach(i=>dl3.append(h('option',{value:i})));document.body.append(dl2,dl3);
