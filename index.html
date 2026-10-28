@@ -9,6 +9,15 @@
 <body>
 <header><img src="icon-192.png" alt="" width="30" height="30"><b>GYM RAT APP</b><span id="st" role="status" aria-live="polite"></span><span id="on"></span></header>
 <main id="app">Cargando…</main>
+<script>
+// Vigilante: si tras 7 s la app sigue en «Cargando…» (mala señal), ofrece reintentar o reparar sin tocar tus datos
+setTimeout(function(){var m=document.getElementById('app');if(!m||m.textContent!=='Cargando…')return;
+function b(t,f){var x=document.createElement('button');x.type='button';x.className='btn';x.textContent=t;x.onclick=f;return x}
+var p=document.createElement('p');p.textContent='La app está tardando en abrir (probablemente mala señal). Tus datos están a salvo en este teléfono.';
+m.textContent='';m.append(p,b('Reintentar',function(){location.reload()}),b('Reparar app (necesita internet)',function(){
+var u=navigator.serviceWorker?navigator.serviceWorker.getRegistrations().then(function(r){return Promise.all(r.map(function(x){return x.unregister()}))}):Promise.resolve();
+u.then(function(){return window.caches?caches.keys().then(function(k){return Promise.all(k.map(function(n){return caches.delete(n)}))}):0}).then(function(){location.reload()})}))},7000);
+</script>
 <nav id="nav" aria-label="Navegación principal"><button type="button" data-v="main"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10"/></svg><span>Inicio</span></button><button type="button" data-v="plan"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2zM16 2v4M8 2v4M3 10h18"/></svg><span>Mis días</span></button><button type="button" data-v="hist"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Historial</span></button><button type="button" data-v="data"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></svg><span>General</span></button></nav>
 <div id="toast" role="alert" hidden></div>
 <script src="db.js"></script><script src="app.js"></script>
