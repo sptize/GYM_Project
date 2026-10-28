@@ -59,8 +59,6 @@ input.acc{border-color:#5fbf7f}
 input[readonly]{cursor:pointer}
 #toast{white-space:pre-line}
 .u.eff{min-width:0;padding:0;font-size:18px;min-height:44px}
-.pk{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 8px 30px}
-.chip{background:linear-gradient(180deg,#34343a,#1a1a1e);color:var(--t);border:1px solid var(--ln);border-radius:20px;padding:8px 14px;font-size:15px;font-weight:700;min-height:40px}
 .modeb{background:none;border:0;color:var(--m);font-size:12px;text-decoration:underline;padding:0;min-height:0;text-align:left}
 .btn.tc{min-width:52px;padding:6px 8px}
 .btn.tb{padding:6px 10px;min-width:64px}
