@@ -439,7 +439,7 @@ const a=h('a',{href:`https://wa.me/${S.cc}${S.phone}?text=${encodeURIComponent(t
 catch(e){toast('Error al preparar el código: '+e.message)}}
 const tn=t=>h('p',{class:'tn'},t);
 const fileIn=()=>h('input',{type:'file',accept:'.json,application/json,text/plain',style:'display:none',onchange:async e=>{const f=e.target.files[0];if(f)await restoreFrom(await f.text());e.target.value=''}});
-const backupBox=()=>{const ta=h('textarea',{rows:3,'aria-label':'Código de recuperación',placeholder:'Copia el código aquí (empieza con GYMRAT)'}),f1=fileIn(),f2=fileIn();
+const backupBox=()=>{prepBackup();const ta=h('textarea',{rows:3,'aria-label':'Código de recuperación',placeholder:'Copia el código aquí (empieza con GYMRAT)'}),f1=fileIn(),f2=fileIn();
 return h('div',{},
 h('div',{class:'card'},B('Guardar Progreso en Drive',shareBackup,'main'),tn('Abre el menú de compartir del teléfono para que elijas Drive. Guarda un archivo con todos tus datos.')),
 h('div',{class:'card'},B('Guardar Progreso en el móvil',()=>exp('json'),'alt'),tn('Descarga a este móvil el archivo con todos tus datos: sesiones, medidas, 1RM, hidratación, tus días y el catálogo.')),
@@ -451,10 +451,16 @@ async function exp(kind){try{await flush();await load();const d=today();
 if(kind==='json'){dl(`gym-rat-backup-${d}.json`,JSON.stringify(await backupObj(),null,1),'application/json')}
 else{if(!S.all.some(s=>s.exercises.length)&&!S.meds.some(hasMed))return toast('Aún no hay datos para exportar');kind==='ia'?out(`gym-rat-evaluacion-ia-${d}`,IA_PROMPT+'\n\n'+fullTxt(),'txt'):out(`gym-rat-historial-${d}`,fullTxt(),kind)}
 toast('Exportación lista')}catch(e){toast('Error al exportar: '+e.message)}}
-// Guardado General por el menú de compartir del teléfono (ahí eliges Drive); si no se puede, lo descarga como siempre
-async function shareBackup(){try{await flush();await load();const n=`gym-rat-backup-${today()}.json`,t=JSON.stringify(await backupObj(),null,1),f=new File([t],n,{type:'application/json'});
-if(navigator.canShare&&navigator.canShare({files:[f]})){await navigator.share({files:[f],title:'Respaldo GYM RAT APP'});toast('Respaldo enviado')}
-else{dl(n,t,'application/json');toast('Tu teléfono no permite compartir: se descargó el archivo. Súbelo a Drive desde Archivos')}}catch(e){if(e&&e.name==='AbortError')return;toast('Error al compartir: '+e.message)}}
+// Guardado General por el menú de compartir del teléfono (ahí eliges Drive). El archivo se deja listo ANTES del toque:
+// el navegador solo abre «Compartir» si se pide en el mismo instante en que tocas el botón
+let BK=null;
+async function prepBackup(){try{await flush();await load();const n=`gym-rat-backup-${today()}.json`,t=JSON.stringify(await backupObj(),null,1);BK={n,t,f:new File([t],n,{type:'application/json'})}}catch(_){BK=null}}
+function shareBackup(){const b=BK;if(!b){prepBackup();return toast('Preparando el archivo… toca de nuevo en un segundo')}
+const baja=m=>{dl(b.n,b.t,'application/json');toast(m)};
+if(navigator.share&&navigator.canShare&&navigator.canShare({files:[b.f]})){
+navigator.share({files:[b.f],title:'Respaldo GYM RAT APP'}).then(()=>toast('Respaldo enviado')).catch(e=>{if(e&&e.name==='AbortError')return;baja('No se pudo abrir Compartir ('+((e&&e.name)||'error')+'): se descargó el archivo. Súbelo a Drive desde Archivos')})}
+else baja('Tu teléfono no permite compartir desde la app: se descargó el archivo. Súbelo a Drive desde Archivos');
+setTimeout(prepBackup,1500)}
 // Borrado: 'hist' = sesiones, medidas e hidratación (conserva tus días, catálogo y datos); 'all' = todo, como app nueva
 async function wipe(kind){const all=kind==='all';
 if(!confirm(all?'Se borrará TODO: historial, medidas, tus días, el catálogo y tus datos personales. La app quedará como nueva.\n\n¿Ya hiciste un Guardado General?\n\n¿Continuar?':'Se borrarán TODAS las sesiones (con su hidratación), medidas y 1RM. Se conservan tus días, el catálogo y tus datos personales.\n\n¿Ya hiciste un Guardado General?\n\n¿Continuar?'))return;
@@ -497,5 +503,4 @@ const dl2=h('datalist',{id:'dl-r'}),dl3=h('datalist',{id:'dl-s'});[6,8,10,12,15,
 navigator.storage&&navigator.storage.persist&&navigator.storage.persist();
 document.querySelectorAll('#nav button').forEach(b=>b.onclick=()=>go(b.dataset.v));
 const on=()=>$('#on').textContent=navigator.onLine?'En línea':'Sin conexión';on();addEventListener('online',on);addEventListener('offline',on);
-if('serviceWorker' in navigator){const had=!!navigator.serviceWorker.controller;let rl=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{if(had&&!rl){rl=true;location.reload()}});navigator.serviceWorker.register('service-worker.js').catch(()=>{})}
-go('main')}catch(e){$('#app').textContent='Error de base de datos: '+e.message}})();
+if('serviceWorker' in navigator){const had=!!navigator.serviceWorker.controller;let rl=false;navigator.serviceWorker.addEventListener('controllerchange',()=>{i
